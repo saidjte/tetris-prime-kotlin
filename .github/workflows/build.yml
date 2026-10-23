@@ -1,0 +1,50 @@
+name: Build Kotlin APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          VERSION="1.1.0"
+          find app/build/outputs/apk -name "*.apk" | head -1 | xargs -I{} cp {} tetris-prime-kotlin-${VERSION}.apk
+          ls -la tetris-prime-kotlin-*.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tetris-prime-kotlin-apk
+          path: tetris-prime-kotlin-*.apk
+          retention-days: 30
+
+      - name: Upload source archive
+        run: |
+          git archive --format=zip --prefix=tetris-prime-kotlin/ HEAD -o tetris-prime-kotlin-src.zip
+
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tetris-prime-kotlin-src
+          path: tetris-prime-kotlin-src.zip
+          retention-days: 30
