@@ -102,7 +102,7 @@ class BackgroundRenderer {
     /** Render the background to canvas. */
     fun render(canvas: Canvas, width: Float, height: Float) {
         // Draw gradient background
-        val colors = background.gradientColors.toIntArray()
+        val colors = IntArray(background.gradientColors.size) { background.gradientColors[it] }
         val positions = floatArrayOf(0f, 0.55f, 1f)
         paint.shader = LinearGradient(0f, 0f, 0f, height, colors, positions, Shader.TileMode.CLAMP)
         paint.alpha = 255

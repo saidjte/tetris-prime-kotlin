@@ -169,7 +169,7 @@ class GameView @JvmOverloads constructor(
             val screenY = boardY - 2
             for (x in 0 until board.width) {
                 board[x, boardY]?.let { type ->
-                    val color = getPieceColor(type] ?: Color.WHITE
+                    val color = getPieceColor(type)
                     drawBlock(canvas, x, screenY, color)
                 }
             }
@@ -177,7 +177,7 @@ class GameView @JvmOverloads constructor(
 
         // Ghost piece
         engine.getGhostPiece()?.let { ghost ->
-            val color = getPieceColor(ghost.type.char] ?: Color.WHITE
+            val color = getPieceColor(ghost.type.char)
             ghostPaint.color = Color.argb(100, Color.red(color), Color.green(color), Color.blue(color))
             ghost.cells().forEach { (x, y) ->
                 if (y >= 2) {
@@ -188,7 +188,7 @@ class GameView @JvmOverloads constructor(
 
         // Current piece
         engine.currentPiece?.let { piece ->
-            val color = getPieceColor(piece.type.char] ?: Color.WHITE
+            val color = getPieceColor(piece.type.char)
             piece.cells().forEach { (x, y) ->
                 if (y >= 2) {
                     drawBlock(canvas, x, y - 2, color)
