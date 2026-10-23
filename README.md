@@ -73,3 +73,25 @@ GitHub Actions يبني APK تلقائياً عند كل push إلى `main`.
 ### Mission System
 - 100 مهمة: lines, score, tetrises, tspins, combo, pc, survive, level
 - 8 أنواع رموز في المغامرة: ⭐🔶❤️⚡💎👑🌸🛡️
+
+## المرحلة 3: نظام الصوت (v1.3.0)
+
+### نظام SFX (22 مؤثر صوتي)
+sfx_move, sfx_rotate, sfx_soft, sfx_hard, sfx_lock, sfx_hold, sfx_click,
+sfx_clear1-3, sfx_tetris, sfx_tspin1-3, sfx_levelup, sfx_danger, sfx_save,
+sfx_record, sfx_tick, sfx_go, sfx_over
+
+### نظام Voice (38 حدث، 13 حزمة)
+- 13 حزمة معلقين: raffina, giant, chipmunk, cyber, stadium, echo, radio, twin, alien, calm, whisper, hero, sage
+- تأثيرات per-pack: pitch shift, reverb, echo, bandpass
+- نظام cooldown (HIGH=1.2s, NORMAL=2.2s, LOW=6s)
+
+### نظام الموسيقى (3 مسارات مركبة)
+- menu (84 BPM), tetris (149 BPM), drive (118 BPM)
+- تركيب إجرائي: chord progression + melody + bass
+- AudioTrack ل real-time audio generation
+
+### AudioEngine
+- موحد للأنظمة الثلاثة
+- مرتبط بأحداث محرك اللعبة
+- إدارة الموارد (init/release)

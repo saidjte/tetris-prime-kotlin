@@ -21,6 +21,7 @@ class GameActivity : AppCompatActivity() {
     private lateinit var modeText: TextView
 
     private var engine: ModeGameEngine? = null
+    private var audioEngine: AudioEngine? = null
     private var battleAI: BattleAI? = null
     private var lastUpdateTime = 0L
 
@@ -41,6 +42,10 @@ class GameActivity : AppCompatActivity() {
         val mode = GameMode.valueOf(modeName)
 
         modeText.text = getModeDisplayName(mode)
+
+        // Initialize audio engine
+        audioEngine = AudioEngine(this)
+        audioEngine?.init()
 
         // Create engine based on mode
         when (mode) {
@@ -65,6 +70,31 @@ class GameActivity : AppCompatActivity() {
                 engine = ModeGameEngine(mode = mode)
             }
         }
+
+        // Set audio callbacks
+        engine?.onWin = {
+            statusText.text = "🏆 فوز!"
+            audioEngine?.voiceWin()
+        }
+        engine?.onTimeUp = {
+            statusText.text = "⏰ انتهى الوقت!"
+            audioEngine?.voiceTimeUp()
+        }
+        engine?.onUltra60 = {
+            statusText.text = "⏱️ دقيقة متبقية"
+            audioEngine?.voiceUltra60()
+        }
+        engine?.onUltra30 = {
+            statusText.text = "⏱️ ٣٠ ثانية"
+            audioEngine?.voiceUltra30()
+        }
+        engine?.onHurry = {
+            statusText.text = "⚠️ عجّل!"
+            audioEngine?.voiceHurry()
+        }
+
+        // Start game music
+        audioEngine?.onGameStart(mode)
 
         // Set callbacks
         engine?.onWin = { statusText.text = "🏆 فوز!" }
@@ -151,6 +181,11 @@ class GameActivity : AppCompatActivity() {
             }
             false
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        audioEngine?.release()
     }
 
     override fun onResume() {
