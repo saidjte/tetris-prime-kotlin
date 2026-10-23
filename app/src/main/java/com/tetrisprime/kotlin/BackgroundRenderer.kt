@@ -240,7 +240,7 @@ class BackgroundRenderer {
         val tileSize = 40f
         for (y in 0..h.toInt() step tileSize.toInt()) {
             for (x in 0..w.toInt() step tileSize.toInt()) {
-                val offset: Float = if ((x / tileSize.toInt() + y / tileSize.toInt()) % 2 == 0) 0 else tileSize / 2
+                val offset: Float = if ((x / tileSize.toInt() + y / tileSize.toInt()) % 2 == 0) 0f else tileSize / 2f
                 canvas.drawRect(
                     x.toFloat() + offset, y.toFloat(),
                     x.toFloat() + offset + tileSize, y.toFloat() + tileSize,
