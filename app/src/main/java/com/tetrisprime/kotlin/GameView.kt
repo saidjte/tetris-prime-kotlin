@@ -19,6 +19,9 @@ class GameView @JvmOverloads constructor(
 
     private var engine = GameEngine()
     val particleSystem = ParticleSystem()
+    val backgroundRenderer = BackgroundRenderer()
+    private var currentTheme = "classic"
+    private var currentBg = "synthwave"
     private var cellSize = 0f
     private var boardOffsetX = 0f
     private var boardOffsetY = 0f
@@ -46,8 +49,8 @@ class GameView @JvmOverloads constructor(
         color = Color.argb(40, 239, 68, 68)
     }
 
-    /** Piece colors. */
-    private val pieceColors = mapOf(
+    /** Default piece colors (fallback). */
+    private val defaultPieceColors = mapOf(
         'I' to Color.parseColor("#22D3EE"),
         'O' to Color.parseColor("#FBBF24"),
         'T' to Color.parseColor("#A78BFA"),
@@ -55,9 +58,17 @@ class GameView @JvmOverloads constructor(
         'Z' to Color.parseColor("#FB7185"),
         'J' to Color.parseColor("#60A5FA"),
         'L' to Color.parseColor("#FB923C"),
-        'G' to Color.parseColor("#6B7280"), // garbage
-        'C' to Color.parseColor("#FDE68A")  // cheese
+        'G' to Color.parseColor("#6B7280"),
+        'C' to Color.parseColor("#FDE68A")
     )
+
+    /** Get piece color from current theme. */
+    private fun getPieceColor(type: Char): Int {
+        val themeColor = ThemeDefinitions.getPieceColor(currentTheme, type)
+        return try { Color.parseColor(themeColor) } catch (e: Exception) {
+            defaultPieceColors[type] ?: Color.WHITE
+        }
+    }
 
     val gameEngine: GameEngine get() = engine
 
@@ -70,6 +81,18 @@ class GameView @JvmOverloads constructor(
     fun setFxPack(packId: String) {
         val pack = FxPackDefinitions.getPack(packId)
         particleSystem.setPackColors(pack.colors)
+    }
+
+    /** Set the active theme. */
+    fun setTheme(themeId: String) {
+        currentTheme = themeId
+        invalidate()
+    }
+
+    /** Set the active background. */
+    fun setBackground(bgId: String) {
+        currentBg = bgId
+        backgroundRenderer.setBackground(bgId)
     }
 
     /** Set the FX quality level. */
@@ -92,7 +115,9 @@ class GameView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        canvas.drawColor(Color.parseColor("#0B081E"))
+        // Render animated background
+        backgroundRenderer.update(16f)
+        backgroundRenderer.render(canvas, width.toFloat(), height.toFloat())
 
         // Update particles
         particleSystem.update(16f)
@@ -144,7 +169,7 @@ class GameView @JvmOverloads constructor(
             val screenY = boardY - 2
             for (x in 0 until board.width) {
                 board[x, boardY]?.let { type ->
-                    val color = pieceColors[type] ?: Color.WHITE
+                    val color = getPieceColor(type] ?: Color.WHITE
                     drawBlock(canvas, x, screenY, color)
                 }
             }
@@ -152,7 +177,7 @@ class GameView @JvmOverloads constructor(
 
         // Ghost piece
         engine.getGhostPiece()?.let { ghost ->
-            val color = pieceColors[ghost.type.char] ?: Color.WHITE
+            val color = getPieceColor(ghost.type.char] ?: Color.WHITE
             ghostPaint.color = Color.argb(100, Color.red(color), Color.green(color), Color.blue(color))
             ghost.cells().forEach { (x, y) ->
                 if (y >= 2) {
@@ -163,7 +188,7 @@ class GameView @JvmOverloads constructor(
 
         // Current piece
         engine.currentPiece?.let { piece ->
-            val color = pieceColors[piece.type.char] ?: Color.WHITE
+            val color = getPieceColor(piece.type.char] ?: Color.WHITE
             piece.cells().forEach { (x, y) ->
                 if (y >= 2) {
                     drawBlock(canvas, x, y - 2, color)

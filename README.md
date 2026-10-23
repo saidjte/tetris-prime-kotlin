@@ -118,3 +118,34 @@ classic, neon, colorSafe, crystal, ruby, glass, metal, blaze, aqua,
 emerald, amethyst, gold, shadow
 
 كل ثيم: 7 ألوان للقطع (I, O, T, S, Z, J, L) + خلفية اللوحة
+
+## المرحلة 5: الثيمات والخلفيات (v1.5.0)
+
+### 51 ثيم كامل
+- 3 مجانية (classic, neon, colorSafe)
+- 9 فتح مبكر (gold, sunset, aurora, forest, midnight, matcha, bamboo, pitch, court)
+- 9 اقتصادية (candy, retro, fire, ice, mono, sakura, stone, ocean, desert, meadow)
+- 11 متوسطة (popArt, duoCoral, duoMint, fez, toxic, matrix, neonpunk, vaporwave, royal, marrakesh, chaouen)
+- 11 عالية (zellige, lava, tropical, cube3d, gem3d, glass, crystal, metal, ruby, aqua, gold-dup)
+- 8 مميزة (emerald, amethyst, galaxy, deepSpace, nebula, blaze, shadow, gold)
+
+كل ثيم: 7 ألوان للقطع (I, O, T, S, Z, J, L) + خلفية لوحة
+
+### 9 خلفيات متحركة
+| الخلفية | الطبقة المتحركة |
+|---------|----------------|
+| synthwave | شبكة منظورية + شمس |
+| midnight | نجوم متلألئة |
+| starfield | نجوم متلألئة |
+| aurora | موجات شفقية |
+| sunset | كثبان رملية |
+| ocean | فقاعات صاعدة |
+| forest | يراعات متوهجة |
+| zellige | فسيفساء هندسية |
+| mono | بلا طبقة |
+
+### BackgroundRenderer
+- تدرج لوني عمودي
+- طبقات متحركة بـ Canvas
+- غشاء تعتيم (veil)
+- تحديث بـ 60 FPS
