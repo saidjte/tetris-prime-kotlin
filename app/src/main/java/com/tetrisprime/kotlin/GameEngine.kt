@@ -22,7 +22,7 @@ import kotlin.math.roundToInt
  * - Ghost piece
  * - Soft/Hard drop
  */
-class GameEngine(
+open class GameEngine(
     private val mode: GameMode = GameMode.CLASSIC,
     private val seededRandom: SeededRandom? = null // null = regular random
 ) {
@@ -36,34 +36,34 @@ class GameEngine(
     }
 
     var currentPiece: Piece? = null
-        private set
+        protected set
     var nextPieces: MutableList<PieceType> = mutableListOf()
-        private set
+        protected set
     var holdPiece: PieceType? = null
-        private set
+        protected set
     var holdUsed = false
-        private set
+        protected set
 
     var score = 0L
-        private set
+        protected set
     var lines = 0
-        private set
+        protected set
     var level = 1
-        private set
+        protected set
     var combo = -1
-        private set
+        protected set
     var b2bActive = false
-        private set
+        protected set
 
     // T-Spin and Perfect Clear tracking
     var lastClearWasTSpin = TSpinType.NONE
-        private set
+        protected set
     var lastClearWasDifficult = false
-        private set
+        protected set
     var lastClearWasPerfect = false
-        private set
+        protected set
     var lastActionWasRotate = false
-        private set
+        protected set
 
     // Lock delay system
     private var lockAccumulator = 0L
@@ -72,26 +72,26 @@ class GameEngine(
 
     // Game state
     var isGameOver = false
-        private set
+        protected set
     var isPaused = false
     var status = GameStatus.COUNTDOWN
-        private set
+        protected set
     var countdown = 3
-        private set
+        protected set
 
     // Stats
     var tetrises = 0
-        private set
+        protected set
     var tspins = 0
-        private set
+        protected set
     var perfectClears = 0
-        private set
+        protected set
     var maxCombo = 0
-        private set
+        protected set
     var maxB2b = 0
-        private set
+        protected set
     var piecesPlaced = 0
-        private set
+        protected set
 
     private var dropAccumulator = 0L
     private var softDropping = false
