@@ -20,15 +20,13 @@ object ModeConfig {
      *  Pair(metric, threshold) = requires metric >= threshold. */
     val UNLOCK_REQUIREMENTS: Map<GameMode, Pair<String, Int>?> = mapOf(
         GameMode.CLASSIC to null,
-        GameMode.SPRINT to "games" to 5,
-        GameMode.ZEN to "games" to 10,
-        GameMode.ADVENTURE to "totalLines" to 150,
-        GameMode.ULTRA to "totalLines" to 250,
-        GameMode.CHEESE to "totalLines" to 500,
+        GameMode.SPRINT to ("games" to 5),
+        GameMode.ZEN to ("games" to 10),
+        GameMode.ULTRA to ("totalLines" to 250),
+        GameMode.CHEESE to ("totalLines" to 500),
         GameMode.MISSION to null,
         GameMode.DAILY to null,
         GameMode.BATTLE to null,
-        GameMode.ADVENTURE to "totalLines" to 150
     )
 
     /** Check if a mode is unlocked given current stats. */

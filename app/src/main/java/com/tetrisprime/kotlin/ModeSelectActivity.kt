@@ -82,7 +82,7 @@ class ModeSelectActivity : AppCompatActivity() {
 
         val bgColor = if (unlocked) 0xFF1E1B4B.toInt() else 0xFF1E293B.toInt()
         val accentColor = getModeAccent(mode)
-        background = android.graphics.drawable.GradientDrawable().apply {
+        setBackground(android.graphics.drawable.GradientDrawable()).apply {
             setColor(bgColor)
             cornerRadius = 24f
             setStroke(2, accentColor)
