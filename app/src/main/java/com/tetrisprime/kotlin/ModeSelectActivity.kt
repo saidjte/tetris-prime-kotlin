@@ -82,11 +82,11 @@ class ModeSelectActivity : AppCompatActivity() {
 
         val bgColor = if (unlocked) 0xFF1E1B4B.toInt() else 0xFF1E293B.toInt()
         val accentColor = getModeAccent(mode)
-        setBackground(android.graphics.drawable.GradientDrawable()).apply {
-            setColor(bgColor)
-            cornerRadius = 24f
-            setStroke(2, accentColor)
-        }
+        val drawable = android.graphics.drawable.GradientDrawable()
+        drawable.setColor(bgColor)
+        drawable.cornerRadius = 24f
+        drawable.setStroke(2, accentColor)
+        layout.background = drawable
 
         // Mode icon + name
         val nameText = TextView(this).apply {
