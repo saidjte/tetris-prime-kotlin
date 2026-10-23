@@ -303,13 +303,13 @@ class GameEngine(
             // T-Spin scoring: [0, 800, 1200, 1600] for mini/full × lines
             val tspinLines = min(cleared, 3)
             val tspinBase = TSPIN_SCORES[tspinLines]
-            val finalTspinBase = if (tspin == TSpinType.MINI) tspinBase / 2 else tspinBase
+            if (tspin == TSpinType.MINI) tspinBase / 2 else tspinBase
         } else {
             // Regular scoring: [0, 100, 300, 500, 800]
             REGULAR_SCORES[min(cleared, 4)]
         }
 
-        var totalScore = (if (tspin != TSpinType.NONE) finalTspinBase else baseScore).toLong() * level
+        var totalScore = baseScore.toLong() * level
 
         // Back-to-Back bonus (1.5×)
         if (b2bEligible) {
