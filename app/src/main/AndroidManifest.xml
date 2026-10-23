@@ -7,14 +7,21 @@
         android:theme="@style/Theme.TetrisPrime"
         android:screenOrientation="portrait">
 
+        <!-- Main entry point: Mode selection -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ModeSelectActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Game activity -->
+        <activity
+            android:name=".GameActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>
