@@ -95,3 +95,26 @@ sfx_record, sfx_tick, sfx_go, sfx_over
 - موحد للأنظمة الثلاثة
 - مرتبط بأحداث محرك اللعبة
 - إدارة الموارد (init/release)
+
+## المرحلة 4: نظام الجسيمات والتأثيرات (v1.4.0)
+
+### نظام الجسيمات (22 حزمة)
+classic, burst, stars, bubbles, electric, fireworks, neonrain, crystal,
+phoenix, party, galaxy, aurora, supernova, tsunami, inferno, blizzard,
+volcano, earthquake, tornado, lightning, rainbow, cosmic
+
+### مستويات الجسيمات (6 مستويات)
+off (0×), low (0.3×), medium (0.5×), high (1.0×), ultra (1.5×), legendary (2.2×)
+
+### التأثيرات
+- Bloom: تدرج شعاعي عند Tetris/T-Spin/Perfect Clear/Level Up
+- Confetti: قصاصات ملوّنة عند Perfect Clear/فوز
+- Floating text: عبارات احتفالية (TETRIS!, T-SPIN!, COMBO ×N, etc.)
+- 12 نوع جسيمات: default, star, bubble, electric, firework, neon streak,
+  crystal shard, phoenix flame, party confetti, galaxy swirl, aurora wave, lightning bolt
+
+### الثيمات (13 ثيم)
+classic, neon, colorSafe, crystal, ruby, glass, metal, blaze, aqua,
+emerald, amethyst, gold, shadow
+
+كل ثيم: 7 ألوان للقطع (I, O, T, S, Z, J, L) + خلفية اللوحة

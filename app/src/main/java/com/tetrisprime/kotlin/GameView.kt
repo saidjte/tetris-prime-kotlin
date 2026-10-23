@@ -18,6 +18,7 @@ class GameView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private var engine = GameEngine()
+    val particleSystem = ParticleSystem()
     private var cellSize = 0f
     private var boardOffsetX = 0f
     private var boardOffsetY = 0f
@@ -65,6 +66,17 @@ class GameView @JvmOverloads constructor(
         invalidate()
     }
 
+    /** Set the active FX pack. */
+    fun setFxPack(packId: String) {
+        val pack = FxPackDefinitions.getPack(packId)
+        particleSystem.setPackColors(pack.colors)
+    }
+
+    /** Set the FX quality level. */
+    fun setFxLevel(level: String) {
+        particleSystem.setFxLevel(level)
+    }
+
     init {
         engine.start()
     }
@@ -81,6 +93,13 @@ class GameView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawColor(Color.parseColor("#0B081E"))
+
+        // Update particles
+        particleSystem.update(16f)
+
+        // Render particles (on top of everything)
+        particleSystem.render(canvas, boardOffsetX, boardOffsetY,
+            cellSize * engine.board.width, cellSize * engine.board.visibleHeight, cellSize)
 
         val board = engine.board
         val visHeight = board.visibleHeight
