@@ -50,6 +50,11 @@ class GameActivity : AppCompatActivity() {
     private var prevGameStatus: GameStatus = GameStatus.COUNTDOWN
     private var prevCountdown = 3
     private var gameStartTimeMs = 0L
+    private var prevPiecesPlaced = 0
+
+    // Phase 5: near-record detection — fire once per game when score crosses 90% of best
+    private var nearRecordAnnounced = false
+    private var bestScoreForMode: Long = 0L
 
     // Phase 7 input subsystems
     private lateinit var haptic: HapticController
@@ -124,8 +129,16 @@ class GameActivity : AppCompatActivity() {
             prevTSpinType = eng.lastClearWasTSpin
             prevGameStatus = eng.status
             prevCountdown = eng.countdown
+            prevPiecesPlaced = eng.piecesPlaced
         }
         gameStartTimeMs = 0L  // set on first PLAYING frame
+
+        // Phase 5: trigger onGameStart audio cues (music + voice intro per mode)
+        audioEngine?.onGameStart(mode)
+
+        // Phase 5: load best score for this mode for near-record detection
+        bestScoreForMode = LeaderboardManager.getTop(this, mode).firstOrNull()?.score ?: 0L
+        nearRecordAnnounced = false
 
         // Phase 8: capture mission/adventure index for completion tracking
         missionIndex = intent.getIntExtra("mission_index", -1)
@@ -135,38 +148,37 @@ class GameActivity : AppCompatActivity() {
         engine?.onWin = {
             statusText.text = "🏆 فوز!"
             audioEngine?.voiceWin()
+            gameView.showAnnouncer("🏆 فوز!")
         }
         engine?.onTimeUp = {
             statusText.text = "⏰ انتهى الوقت!"
             audioEngine?.voiceTimeUp()
+            gameView.showAnnouncer("⏰ انتهى الوقت!")
         }
         engine?.onUltra60 = {
             statusText.text = "⏱️ دقيقة متبقية"
             audioEngine?.voiceUltra60()
+            gameView.showAnnouncer("⏱️ دقيقة متبقية")
         }
         engine?.onUltra30 = {
             statusText.text = "⏱️ ٣٠ ثانية"
             audioEngine?.voiceUltra30()
+            gameView.showAnnouncer("⏱️ ٣٠ ثانية")
         }
         engine?.onHurry = {
             statusText.text = "⚠️ عجّل!"
             audioEngine?.voiceHurry()
+            gameView.showAnnouncer("⚠️ عجّل!")
         }
-
-        // Start game music
-        audioEngine?.onGameStart(mode)
-
-        // Set callbacks
-        engine?.onWin = { statusText.text = "🏆 فوز!" }
-        engine?.onTimeUp = { statusText.text = "⏰ انتهى الوقت!" }
-        engine?.onUltra60 = { statusText.text = "⏱️ دقيقة متبقية" }
-        engine?.onUltra30 = { statusText.text = "⏱️ ٣٠ ثانية" }
-        engine?.onHurry = { statusText.text = "⚠️ عجّل!" }
         engine?.onCheeseProgress = { remaining ->
             statusText.text = "🧀 متبقي: $remaining"
         }
         engine?.onMissionProgress = { current, goal ->
             statusText.text = "🎯 $current / $goal"
+        }
+        engine?.onAdventureTokens = { collected, goal ->
+            statusText.text = "🔮 $collected / $goal رموز"
+            gameView.showAnnouncer("🔮 رمز $collected/$goal")
         }
 
         // Replace the GameView's engine with our mode engine
@@ -407,14 +419,24 @@ class GameActivity : AppCompatActivity() {
                             if (eng.mode == GameMode.SPRINT) {
                                 audioEngine?.onSprintProgress(eng.lines)
                             }
+                            // Phase 5: near-record detection (90% of best)
+                            if (!nearRecordAnnounced && bestScoreForMode > 0L && eng.score >= (bestScoreForMode * 9 / 10)) {
+                                nearRecordAnnounced = true
+                                audioEngine?.voiceNear()
+                                audioEngine?.playRecord()
+                                gameView.showAnnouncer("🏆 قربت من الرقم القياسي!")
+                            }
                             prevScore = eng.score
                         }
 
                         // Phase 2: line milestone (25/50/100/150/200)
                         audioEngine?.onTotalLinesChange(eng.lines)
 
-                        // Phase 2: lock sound (piece placed) — detected via piecesPlaced
-                        // (handled via GameView's lockFlash which already detects this)
+                        // Phase 5: lock SFX (piece placed) — play on every piece lock
+                        if (eng.piecesPlaced > prevPiecesPlaced) {
+                            audioEngine?.playLock()
+                            prevPiecesPlaced = eng.piecesPlaced
+                        }
                     }
 
                     // Phase 2: game-over audio (fire once when transitioning to GAME_OVER)

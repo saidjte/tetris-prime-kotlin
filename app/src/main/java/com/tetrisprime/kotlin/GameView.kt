@@ -203,6 +203,27 @@ class GameView @JvmOverloads constructor(
     /** Game-over overlay fade-in. */
     private var gameOverAgeMs: Float = 0f
 
+    /** Phase 5 — announcer text (transient on-screen caption).
+     *  Set by the activity when audio/voice events fire, to mirror the
+     *  original app's on-screen announcer for accessibility (captions). */
+    private var announcerText: String? = null
+    private var announcerAgeMs: Float = 0f
+    private val announcerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+        textSize = 18f
+    }
+    private val announcerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.argb(180, 11, 8, 30)
+    }
+
+    /** Called from the activity to display a transient announcer caption. */
+    fun showAnnouncer(text: String?) {
+        announcerText = text
+        announcerAgeMs = 0f
+    }
+
     // ====================================================================
     // Diff tracking — used to detect engine events without modifying engine
     // ====================================================================
@@ -305,11 +326,11 @@ class GameView @JvmOverloads constructor(
                         else -> "T-SPIN!"
                     }
                     particleSystem.onFloatText(label, popupColorTSpin, lane = 1)
-                    if (eng.b2bActive) particleSystem.onFloatText("B2B ×2", popupColorTSpin, lane = 2)
+                    if (eng.b2bActive) particleSystem.onFloatText("BACK-TO-BACK ×1.5", popupColorTSpin, lane = 2)
                 }
                 linesCleared == 4 -> {
                     particleSystem.onFloatText("TETRIS!", popupColorTetris, lane = 1)
-                    if (eng.b2bActive) particleSystem.onFloatText("B2B ×2", popupColorTetris, lane = 2)
+                    if (eng.b2bActive) particleSystem.onFloatText("BACK-TO-BACK ×1.5", popupColorTetris, lane = 2)
                 }
                 linesCleared == 3 -> {
                     particleSystem.onFloatText("TRIPLE", popupColor, lane = 1)
@@ -537,6 +558,40 @@ class GameView @JvmOverloads constructor(
         } else {
             gameOverAgeMs = 0f
         }
+
+        // 16. Phase 5 — announcer text (transient caption, fades after 2.5s)
+        drawAnnouncer(canvas)
+    }
+
+    private fun drawAnnouncer(canvas: Canvas) {
+        val text = announcerText ?: return
+        announcerAgeMs += 16f
+        val totalDuration = 2500f
+        if (announcerAgeMs >= totalDuration) {
+            announcerText = null
+            return
+        }
+        val t = announcerAgeMs / totalDuration
+        // Fade out in last 30% of duration
+        val alpha = if (t < 0.7f) 255 else ((1f - (t - 0.7f) / 0.3f) * 255).toInt().coerceIn(0, 255)
+        // Position: top-center, below the status bar
+        val cx = width / 2f
+        val cy = height * 0.18f
+        val pad = 24f
+        val textW = announcerPaint.measureText(text)
+        val bgLeft = cx - textW / 2 - pad
+        val bgRight = cx + textW / 2 + pad
+        val bgTop = cy - announcerPaint.textSize
+        val bgBottom = cy + announcerPaint.textSize * 0.4f
+
+        announcerBgPaint.alpha = (alpha * 0.7f).toInt()
+        canvas.drawRoundRect(
+            android.graphics.RectF(bgLeft, bgTop, bgRight, bgBottom),
+            12f, 12f, announcerBgPaint
+        )
+
+        announcerPaint.color = Color.argb(alpha, 253, 224, 71)  // amber
+        canvas.drawText(text, cx, cy, announcerPaint)
     }
 
     // ====================================================================
