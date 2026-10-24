@@ -47,6 +47,18 @@ class StoreActivity : AppCompatActivity() {
         headerRow.addView(coinLabel)
         container.addView(headerRow)
 
+        // Phase 8.8: gift codes link
+        val giftBtn = android.widget.TextView(this).apply {
+            text = "🎁 استرداد كود هدية"
+            textSize = 13f
+            setTextColor(0xFFFBBF24.toInt())
+            setPadding(0, 0, 0, 16)
+            setOnClickListener {
+                startActivity(android.content.Intent(this@StoreActivity, GiftCodeActivity::class.java))
+            }
+        }
+        container.addView(giftBtn)
+
         // Tab bar
         val tabRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL

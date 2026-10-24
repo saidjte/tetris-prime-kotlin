@@ -424,6 +424,20 @@ open class GameEngine(
 
     private var countdownAccumulator = 0L
 
+    /**
+     * Resume the game after a continue (used by ContinueSystem).
+     * Unsets game-over, returns to PLAYING status, and spawns a fresh piece.
+     */
+    fun resumeAfterContinue() {
+        isGameOver = false
+        isPaused = false
+        status = GameStatus.PLAYING
+        // Spawn a fresh piece so the player can continue immediately
+        if (currentPiece == null) {
+            spawnPiece()
+        }
+    }
+
     /** Pause/unpause the game. */
     fun togglePause() {
         if (!isGameOver && status == GameStatus.PLAYING) {

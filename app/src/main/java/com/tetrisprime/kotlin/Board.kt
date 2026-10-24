@@ -97,6 +97,27 @@ class Board(val width: Int = 10, val height: Int = 22) {
         return -1
     }
 
+    /**
+     * Clear the top N filled rows (used by the Continue system).
+     * Returns the number of rows actually cleared.
+     */
+    fun clearTopRows(n: Int): Int {
+        var cleared = 0
+        // Iterate from the top, find filled rows, clear them, until we've cleared n.
+        for (y in 0 until height) {
+            if (cleared >= n) break
+            var rowFilled = false
+            for (x in 0 until width) {
+                if (this[x, y] != null) { rowFilled = true; break }
+            }
+            if (rowFilled) {
+                for (x in 0 until width) this[x, y] = null
+                cleared++
+            }
+        }
+        return cleared
+    }
+
     /** Check if the board is completely empty (for Perfect Clear detection). */
     fun isEmpty(): Boolean {
         for (i in grid.indices) {

@@ -31,6 +31,9 @@ class GameActivity : AppCompatActivity() {
     private var audioEngine: AudioEngine? = null
     private var battleAI: BattleAI? = null
     private var lastUpdateTime = 0L
+    private var continuePromptShown = false
+    private var missionIndex: Int = -1   // -1 = not a mission/adventure
+    private var adventureIndex: Int = -1
 
     // Phase 7 input subsystems
     private lateinit var haptic: HapticController
@@ -88,6 +91,10 @@ class GameActivity : AppCompatActivity() {
         // and the countdown begins. Without this call, the engine sits in its initial
         // state (empty board, null currentPiece) and the game appears frozen.
         engine?.start()
+
+        // Phase 8: capture mission/adventure index for completion tracking
+        missionIndex = intent.getIntExtra("mission_index", -1)
+        adventureIndex = intent.getIntExtra("adventure_index", -1)
 
         // Set audio callbacks
         engine?.onWin = {
@@ -299,6 +306,13 @@ class GameActivity : AppCompatActivity() {
                     } else if (eng.status == GameStatus.PLAYING) {
                         (eng as ModeGameEngine).updateMode(delta)
                     }
+
+                    // Phase 8: detect game-over transition
+                    if (eng.isGameOver && !continuePromptShown) {
+                        continuePromptShown = true
+                        onGameOverFirstDetected(eng)
+                    }
+
                     gameView.invalidate()
 
                     scoreText.text = "Score: ${eng.score}"
@@ -320,5 +334,125 @@ class GameActivity : AppCompatActivity() {
             }
         }
         handler.post(runnable)
+    }
+
+    /**
+     * Phase 8 — called once when the game-over state is first detected.
+     *
+     * 1. Records the result (stats, achievements, leaderboard).
+     * 2. Records mission/adventure/daily completion if won.
+     * 3. Awards coins via StoreManager.
+     * 4. Shows a continue dialog (only for topout, not for wins).
+     */
+    private fun onGameOverFirstDetected(eng: ModeGameEngine) {
+        val result = eng.getGameResult()
+        val runtimeMs = System.currentTimeMillis() - lastUpdateTime + 1L
+
+        // Update player stats
+        StatsManager.applyGameResult(this, result.copy(
+            piecesPlaced = eng.piecesPlaced,
+            tetrises = eng.tetrises,
+            tspinFull = eng.tspins,
+            perfectClears = eng.perfectClears,
+            maxCombo = eng.maxCombo,
+            maxB2b = eng.maxB2b
+        ), runtimeMs)
+
+        // Update achievements
+        val metrics = StatsManager.load(this)
+        AchievementDefinitions.updateUnlocked(this, metrics)
+
+        // Submit to leaderboard
+        LeaderboardManager.submit(this, eng.mode, LeaderboardEntry(
+            score = eng.score,
+            lines = eng.lines,
+            level = eng.level,
+            timestampMs = System.currentTimeMillis()
+        ))
+
+        // Award coins (game-end reward formula)
+        val reward = StoreManager.computeReward(eng.lines, eng.score)
+        StoreManager.addCoins(this, reward)
+
+        // Track mode-specific completions
+        when (eng.mode) {
+            GameMode.MISSION -> {
+                if (result.isWin && missionIndex >= 0) {
+                    MissionProgressManager.completeMission(this, missionIndex)
+                }
+            }
+            GameMode.ADVENTURE -> {
+                if (result.isWin && adventureIndex >= 0) {
+                    val stage = AdventureProgressManager.getStage(this, adventureIndex)
+                    val tokens = stage?.stage?.tokens?.toSet() ?: emptySet()
+                    AdventureProgressManager.completeStage(this, adventureIndex, tokens)
+                }
+            }
+            GameMode.DAILY -> {
+                if (result.isWin) {
+                    DailyChallengeManager.recordWin(this, eng.score)
+                }
+            }
+            else -> {}
+        }
+
+        // Show continue dialog only on topout (not on win or time-up)
+        if (result.overReason == GameOverReason.TOPOUT) {
+            showContinueDialog(eng)
+        }
+    }
+
+    /**
+     * Phase 8.7 — show the continue dialog.
+     * Options: free ad continue, coin continue, free "clear top 10", or quit.
+     */
+    private fun showContinueDialog(eng: ModeGameEngine) {
+        val state = ContinueSystem.getState(this)
+        val coins = StoreManager.getCoins(this)
+
+        val message = buildString {
+            append("انتهت اللعبة!\n")
+            append("النقاط: ${eng.score}\n\n")
+            append("استمرار بالإعلان: ${state.adContinuesRemaining}/3 مجاناً\n")
+            append("استمرار بعملات: ${state.coinContinueCost} (لديك $coins)\n")
+            append("أو مسح 10 صفوف علوية مجاناً (بدون حماية النقاط)")
+        }
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("استمرار؟")
+            .setMessage(message)
+            .setCancelable(false)
+            .setPositiveButton("إعلان مجاني") { _, _ ->
+                if (state.adContinuesRemaining > 0) {
+                    // In a real app, show the ad here. For now, grant immediately.
+                    ContinueSystem.recordAdContinue(this)
+                    if (ContinueSystem.applyContinue(eng)) {
+                        continuePromptShown = false
+                        statusText.text = ""
+                    }
+                } else {
+                    android.widget.Toast.makeText(this, "لا توجد استمرارات إعلانية متبقية اليوم", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNeutralButton("عملات (${state.coinContinueCost})") { _, _ ->
+                if (ContinueSystem.recordCoinContinue(this)) {
+                    if (ContinueSystem.applyContinue(eng)) {
+                        continuePromptShown = false
+                        statusText.text = ""
+                    }
+                } else {
+                    android.widget.Toast.makeText(this, "عملات غير كافية", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("مسح 10 صفوف") { _, _ ->
+                ContinueSystem.recordFreeContinue(this)
+                if (ContinueSystem.applyContinue(eng)) {
+                    continuePromptShown = false
+                    statusText.text = ""
+                }
+            }
+            .setOnCancelListener { /* do nothing — game stays over */ }
+            .create()
+        dialog.show()
     }
 }

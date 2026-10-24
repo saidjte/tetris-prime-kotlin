@@ -62,6 +62,22 @@
             android:name=".InputSettingsActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+
+        <!-- Phase 8: Missions / Adventure / Gift codes -->
+        <activity
+            android:name=".MissionsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".AdventureActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".GiftCodeActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

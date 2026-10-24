@@ -135,3 +135,46 @@ Stage Summary:
 - Haptics and music are now fault-tolerant — they degrade gracefully instead of
   crashing the whole app.
 - Same signing key preserved → install v1.7.1 over v1.7.0 without uninstall.
+
+---
+Task ID: phase-8
+Agent: main
+Task: إبدأ المرحلة 8 — Special features (daily streak / 100 missions / 36 adventure stages / continue system / gift codes)
+
+Work Log:
+- Read MIGRATION_PLAN.md Phase 8 spec (8.1 daily, 8.2 missions, 8.3 adventure, 8.4 battle AI, 8.5 achievements [done in P6], 8.6 store [done in P6], 8.7 continue, 8.8 gift codes)
+- Confirmed existing infrastructure: Fnv1aHash.dailyGoal, MissionDefinitions.generateAll (100 missions), AdventureDefinitions.generateAll (36 stages × 6 worlds × 8 token types), BattleAI (3 difficulties)
+- Created DailyChallengeManager.kt — streak tracking (increment if yesterday+today, reset if skipped), seeded RNG for daily piece sequence, best score, total wins, alreadyWonToday flag, streakLabel() with milestone emojis (🔥⚡🌟👑)
+- Created MissionProgressManager.kt — progressive unlock (mission N+1 unlocks only after N completed), 100 missions, getNextMission(), completeMission(), describe()/kindLabel() helpers
+- Created MissionsActivity.kt — 5-column scrollable grid showing all 100 missions with 3 states (completed=green✓, unlocked=purple, locked=grey🔒); tapping unlocked mission launches GameActivity with mission_index extra
+- Created AdventureProgressManager.kt — 6 worlds × 6 stages = 36 stages, token collection tracking, world unlock progression, getWorlds()/getAllStages()/completeStage()/countToken()
+- Created AdventureActivity.kt — world cards (6) each with 6 stage cells, token summary row at top showing collected count per token type (⭐🔶❤️⚡💎👑🌸🛡️), stage cells show mission goal + token glyphs
+- Created ContinueSystem.kt — 3 continue options: ad (3/day free), coins (exponential cost: 100/200/400/800/1600), free "clear top 10 rows" (no score protection); daily reset
+- Added Board.clearTopRows(n) — clears top N filled rows for continue system
+- Added GameEngine.resumeAfterContinue() — unsets isGameOver, sets status=PLAYING, spawns fresh piece if currentPiece is null
+- Created GiftCodes.kt — local validation registry (10 built-in codes: WELCOME200/PRIME1000/PHOENIXFX/...), Reward types (Coins/FxPack/Theme/VoicePack), redeem() returns Success or Failure, expiry support, one-per-device enforcement
+- Created GiftCodeActivity.kt — input field + redeem button + result label + redeemed count + hint with sample codes
+- Modified GameActivity.kt:
+  * Added missionIndex / adventureIndex fields, read from intent extras
+  * Added onGameOverFirstDetected(eng) — called once when game-over state first detected: records stats, updates achievements, submits to leaderboard, awards coins, completes mission/adventure/daily if won, shows continue dialog on TOPOUT
+  * Added showContinueDialog(eng) — AlertDialog with 3 options (ad/coins/clear-10-rows), resets continuePromptShown on success
+  * Added continuePromptShown flag to prevent dialog spamming
+- Modified ModeSelectActivity.kt:
+  * startGame(MISSION) now picks next uncompleted mission via MissionProgressManager.getNextMission()
+  * startGame(ADVENTURE) now picks next uncompleted stage via AdventureProgressManager.getAllStages()
+  * Added daily challenge streak banner at bottom of mode-select screen
+  * Expanded nav rail to 3×3 grid (added Missions, Adventure, Gift Codes entries)
+- Modified StoreActivity.kt — added "🎁 استرداد كود هدية" link above tab bar
+- Modified AndroidManifest.xml — registered 3 new activities (Missions, Adventure, GiftCode)
+- Modified app/build.gradle — versionCode 9→10, versionName 1.7.1→1.8.0
+- Modified .github/workflows/build.yml — VERSION 1.7.1→1.8.0
+
+Stage Summary:
+- Phase 8 COMPLETE. 5 new manager classes + 3 new activity screens + 2 new engine methods + 1 new board method.
+- Daily challenge: streak system with milestone labels, seeded piece sequence, per-day goal
+- Missions: 100 missions with progressive unlock + UI grid for selection
+- Adventure: 36 stages across 6 worlds with token collection + UI showing progression
+- Continue system: 3 options (ad/coins/free) with daily limits and exponential coin cost
+- Gift codes: 10 built-in codes, local validation, one-per-device enforcement
+- Game-over flow now records stats/achievements/leaderboard/coins automatically and offers continue
+- Same signing key preserved → install v1.8.0 over v1.7.1 without uninstall

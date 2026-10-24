@@ -48,7 +48,7 @@ jobs:
 
       - name: Rename APK
         run: |
-          VERSION="1.7.1"
+          VERSION="1.8.0"
           find app/build/outputs/apk -name "*.apk" | head -1 | xargs -I{} cp {} tetris-prime-kotlin-${VERSION}.apk
           ls -la tetris-prime-kotlin-*.apk
 

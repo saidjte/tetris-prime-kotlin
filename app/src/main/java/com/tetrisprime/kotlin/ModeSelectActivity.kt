@@ -70,17 +70,28 @@ class ModeSelectActivity : AppCompatActivity() {
         }
         container.addView(statsText)
 
+        // Phase 8.1: Daily challenge streak banner
+        val daily = DailyChallengeManager.load(this)
+        val dailyText = TextView(this).apply {
+            text = "📅 تحدي اليوم: ${daily.goal} نقطة — ${DailyChallengeManager.streakLabel(daily.streak)}"
+            textSize = 13f
+            setTextColor(if (daily.alreadyWonToday) 0xFF34D399.toInt() else 0xFFFBBF24.toInt())
+            setPadding(0, 12, 0, 0)
+            gravity = android.view.Gravity.CENTER
+        }
+        container.addView(dailyText)
+
         scrollView.addView(container)
         setContentView(scrollView)
     }
 
     /**
-     * Build a 3-column grid of buttons that navigate to other Phase 6 screens.
+     * Build a grid of buttons that navigate to other Phase 6/8 UI screens.
      */
     private fun buildNavRail(): View {
         val grid = GridLayout(this).apply {
             columnCount = 3
-            rowCount = 2
+            rowCount = 3
             useDefaultMargins = true
             setPadding(0, 32, 0, 0)
         }
@@ -90,7 +101,10 @@ class ModeSelectActivity : AppCompatActivity() {
             NavItem("🏆 الإنجازات") { startActivity(Intent(this, AchievementsActivity::class.java)) },
             NavItem("🛒 المتجر") { startActivity(Intent(this, StoreActivity::class.java)) },
             NavItem("📚 الشرح") { startActivity(Intent(this, TutorialActivity::class.java)) },
-            NavItem("🥇 الصدارة") { startActivity(Intent(this, LeaderboardActivity::class.java)) }
+            NavItem("🥇 الصدارة") { startActivity(Intent(this, LeaderboardActivity::class.java)) },
+            NavItem("🎯 المهمات") { startActivity(Intent(this, MissionsActivity::class.java)) },
+            NavItem("🗺️ المغامرة") { startActivity(Intent(this, AdventureActivity::class.java)) },
+            NavItem("🎁 هدية") { startActivity(Intent(this, GiftCodeActivity::class.java)) }
         )
         for (item in items) {
             grid.addView(navButton(item))
@@ -195,10 +209,41 @@ class ModeSelectActivity : AppCompatActivity() {
         // Add mission/adventure/daily params as needed
         when (mode) {
             GameMode.MISSION -> {
-                val missions = MissionDefinitions.generateAll()
-                intent.putExtra("mission_kind", missions[0].kind.name)
-                intent.putExtra("mission_n", missions[0].n)
-                intent.putExtra("mission_level", missions[0].level ?: 1)
+                // Phase 8.2: pick the next uncompleted mission automatically
+                val next = MissionProgressManager.getNextMission(this)
+                if (next != null) {
+                    intent.putExtra("mission_index", next.index)
+                    intent.putExtra("mission_kind", next.mission.kind.name)
+                    intent.putExtra("mission_n", next.mission.n)
+                    intent.putExtra("mission_level", next.mission.level ?: 1)
+                } else {
+                    // All 100 missions complete — fall back to first
+                    val missions = MissionDefinitions.generateAll()
+                    intent.putExtra("mission_index", 0)
+                    intent.putExtra("mission_kind", missions[0].kind.name)
+                    intent.putExtra("mission_n", missions[0].n)
+                    intent.putExtra("mission_level", missions[0].level ?: 1)
+                }
+            }
+            GameMode.ADVENTURE -> {
+                // Phase 8.3: pick the next uncompleted stage automatically
+                val stages = AdventureProgressManager.getAllStages(this)
+                val next = stages.firstOrNull { it.isUnlocked && !it.isCompleted }
+                if (next != null) {
+                    intent.putExtra("adventure_index", next.index)
+                    intent.putExtra("mission_index", next.index)
+                    intent.putExtra("mission_kind", next.stage.kind.name)
+                    intent.putExtra("mission_n", next.stage.n)
+                    intent.putExtra("mission_level", next.stage.level ?: 1)
+                } else {
+                    // All 36 stages complete — fall back to first
+                    val all = AdventureDefinitions.generateAll()
+                    intent.putExtra("adventure_index", 0)
+                    intent.putExtra("mission_index", 0)
+                    intent.putExtra("mission_kind", all[0].kind.name)
+                    intent.putExtra("mission_n", all[0].n)
+                    intent.putExtra("mission_level", all[0].level ?: 1)
+                }
             }
             GameMode.DAILY -> {
                 val today = java.time.LocalDate.now().toString()
