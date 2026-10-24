@@ -119,9 +119,9 @@ class ModeSelectActivity : AppCompatActivity() {
         }
         val dailyInfo = TextView(this).apply {
             text = if (daily.alreadyWonToday) {
-                "أكملت تحدي اليوم! • ${daily.streakLabel(daily.streak)} • +${daily.reward} 🪙"
+                "أكملت تحدي اليوم! • ${DailyChallengeManager.streakLabel(daily.streak)} • +${daily.reward} 🪙"
             } else {
-                "تحدي اليوم: ${daily.goal} نقطة • ${daily.streakLabel(daily.streak)}"
+                "تحدي اليوم: ${daily.goal} نقطة • ${DailyChallengeManager.streakLabel(daily.streak)}"
             }
             textSize = 13f
             setTextColor(0xFFF3F1FF.toInt())
