@@ -682,3 +682,50 @@ Stage Summary:
 - release v1.17.0 (release_id=422992016) مع APK + source code
 - نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.16.0 بدون إزالة
 - التالي: Phase 7 — الأداء النهائي + الإطلاق v2.0.0
+
+---
+Task ID: phase-7-final-release
+Agent: main
+Task: Phase 7 — Final release v2.0.0 (frame-rate limiting + auto-detect + migration complete)
+
+Work Log:
+- === GameActivity.kt — Frame-rate limiting ===
+  * PerformanceManager.recordFrameTime(frameMs) في كل إطار
+  * Frame delay مشتق من active profile:
+    - ultra: 14ms (72fps)
+    - high: 17ms (60fps)
+    - balanced: 22ms (46fps)
+    - eco: 31ms (32fps)
+  * Floor 8ms (125fps cap) لمنع tight loops مَرَضية
+  * Auto-detect يُعدّل الملف تلقائياً حسب rolling average
+- === versionCode 21 / versionName 2.0.0 ===
+
+=== MIGRATION COMPLETE — FINAL STATS ===
+Kotlin source: 56 files, 12,666 lines
+Assets: 4.86 MB (21 SFX + 275 voice + 4 fonts + 303KB JSON content)
+
+Phases completed:
+- Phase 0: 4 JS bridges + AdMob + content sync
+- Phase 1: ContentLoader + 17 achievements + 101 missions + 40 stages
+- Phase 2: 22 SFX + 276 voice events wired to engine
+- Phase 3: 9 mode configs + unlock system + cheese init + daily seeded RNG
+- Phase 4: Mode-aware HUD + battle difficulty + stats header
+- Phase 5: Announcer + near-record + lock SFX + B2B ×1.5
+- Phase 6: 101 missions + 40 stages loaded from tetris-content.json
+- Phase 7: Frame-rate limiting + auto-detect + final release v2.0.0
+
+Features parity with original WebView app (v4.80.0):
+- 9 game modes + SRS + 7-bag + FNV-1a daily seed
+- Official gravity + 500ms lock delay + 15 max resets
+- T-Spin 3-corner + B2B ×1.5 + combo + perfect clear
+- 101 missions + 7 worlds × 40 adventure stages
+- 17 achievements + 35 themes + 12 FX packs + 9 voice packs + 9 backgrounds
+- 16 languages + AdMob (3 types) + Gift codes + Continue system
+- Local leaderboard + Customizable controls + Backup/restore
+- Performance profiles (4 + auto)
+
+Stage Summary:
+- Migration from WebView/Next.js to Kotlin Native Android COMPLETE
+- release v2.0.0 (release_id=423028496) مع APK + source code
+- نفس مفتاح التوقيع → التحديث يُثبَّت فوق كل الإصدارات السابقة بدون إزالة
+- 8 releases خلال رحلة الترحيل: v1.5.0 → v1.17.0 → v2.0.0
