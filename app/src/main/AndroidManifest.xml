@@ -84,6 +84,12 @@
             android:name=".LanguageSettingsActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+
+        <!-- Phase 10: Backup & restore -->
+        <activity
+            android:name=".BackupRestoreActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

@@ -35,6 +35,10 @@ class GameActivity : AppCompatActivity() {
     private var missionIndex: Int = -1   // -1 = not a mission/adventure
     private var adventureIndex: Int = -1
 
+    // Phase 10: quick-state snapshot — saved every 2s for crash recovery
+    private var lastSnapshotTime = 0L
+    private val snapshotIntervalMs = 2000L
+
     // Phase 7 input subsystems
     private lateinit var haptic: HapticController
     private lateinit var keyboardDispatcher: KeyboardGamepadDispatcher
@@ -330,6 +334,15 @@ class GameActivity : AppCompatActivity() {
                     }
                 }
 
+                // Phase 10: save quick-state snapshot every 2 seconds for crash recovery
+                val engSnapshot = engine
+                if (engSnapshot != null && engSnapshot.status == GameStatus.PLAYING && !engSnapshot.isGameOver) {
+                    if (now - lastSnapshotTime >= snapshotIntervalMs) {
+                        lastSnapshotTime = now
+                        saveQuickSnapshot()
+                    }
+                }
+
                 handler.postDelayed(this, 16)
             }
         }
@@ -347,6 +360,9 @@ class GameActivity : AppCompatActivity() {
     private fun onGameOverFirstDetected(eng: ModeGameEngine) {
         val result = eng.getGameResult()
         val runtimeMs = System.currentTimeMillis() - lastUpdateTime + 1L
+
+        // Phase 10: clear the quick-state snapshot — game is over, no resume needed
+        QuickStateStore.clear(this)
 
         // Update player stats
         StatsManager.applyGameResult(this, result.copy(
@@ -454,5 +470,47 @@ class GameActivity : AppCompatActivity() {
             .setOnCancelListener { /* do nothing — game stays over */ }
             .create()
         dialog.show()
+    }
+
+    /**
+     * Phase 10 — save a quick-state snapshot for crash recovery.
+     * Called every 2 seconds from the game loop while the game is playing.
+     */
+    private fun saveQuickSnapshot() {
+        val eng = engine ?: return
+        val board = eng.board
+        val grid = Array<Char?>(board.width * board.height) { idx ->
+            val x = idx % board.width
+            val y = idx / board.width
+            board[x, y]
+        }
+        val snapshot = QuickStateStore.Snapshot(
+            mode = eng.mode.name,
+            score = eng.score,
+            lines = eng.lines,
+            level = eng.level,
+            combo = eng.combo,
+            b2bActive = eng.b2bActive,
+            holdPiece = eng.holdPiece?.name,
+            holdUsed = eng.holdUsed,
+            nextPieces = eng.nextPieces.map { it.name },
+            boardGrid = grid,
+            boardWidth = board.width,
+            boardHeight = board.height,
+            elapsedTimeMs = 0L,  // ModeGameEngine tracks this internally; 0 for now
+            missionIndex = missionIndex,
+            adventureIndex = adventureIndex,
+            dailyDate = intent.getStringExtra("daily_date")
+        )
+        QuickStateStore.save(this, snapshot)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Phase 10: save a final snapshot when the activity is paused
+        val eng = engine
+        if (eng != null && eng.status == GameStatus.PLAYING && !eng.isGameOver) {
+            saveQuickSnapshot()
+        }
     }
 }

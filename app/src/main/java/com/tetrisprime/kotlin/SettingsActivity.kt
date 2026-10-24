@@ -114,6 +114,23 @@ class SettingsActivity : AppCompatActivity() {
             s.addView(langBtn)
         })
 
+        // Phase 10: Section — Storage & Backup
+        container.addView(section("التخزين والنسخ الاحتياطي").also { s ->
+            val backupBtn = Button(this).apply {
+                text = "💾 نسخ احتياطي واستعادة"
+                setBackgroundColor(0xFF312E81.toInt())
+                setTextColor(0xFFF3F1FF.toInt())
+                setOnClickListener {
+                    startActivity(android.content.Intent(this@SettingsActivity, BackupRestoreActivity::class.java))
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 8 }
+            }
+            s.addView(backupBtn)
+        })
+
         // Done button
         val doneBtn = Button(this).apply {
             text = "تم"
