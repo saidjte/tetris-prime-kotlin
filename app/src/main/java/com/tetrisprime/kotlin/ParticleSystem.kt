@@ -85,7 +85,7 @@ class ParticleSystem {
 
     // Phase 11: object pool — recycles dead Particle instances to avoid GC churn.
     private val particlePool = ArrayDeque<Particle>()
-    private const val MAX_POOL_SIZE = 128
+    private val MAX_POOL_SIZE = 128
 
     /**
      * Obtain a particle (from the pool if available, otherwise new), add it

@@ -120,6 +120,9 @@ class GameView @JvmOverloads constructor(
         particleSystem.setFxLevel(level)
     }
 
+    /** Phase 11: listener handle so we can detach on destroy (avoid leak). */
+    private var performanceListener: ((PerformanceManager.Profile) -> Unit)? = null
+
     init {
         holder.addCallback(this)
         // Focus so touch/key events are delivered
@@ -128,14 +131,12 @@ class GameView @JvmOverloads constructor(
         engine.start()
         // Phase 11: cap particle count by the active performance profile
         particleSystem.applyPerformanceCap(PerformanceManager.activeProfile.maxParticles)
-        performanceListener = { profile ->
+        val listener: (PerformanceManager.Profile) -> Unit = { profile ->
             particleSystem.applyPerformanceCap(profile.maxParticles)
         }
-        PerformanceManager.addListener(performanceListener)
+        performanceListener = listener
+        PerformanceManager.addListener(listener)
     }
-
-    /** Phase 11: listener handle so we can detach on destroy (avoid leak). */
-    private var performanceListener: ((PerformanceManager.Profile) -> Unit)? = null
 
     /** Detach from PerformanceManager (call from Activity.onDestroy). */
     fun releasePerformance() {
@@ -194,7 +195,7 @@ class GameView @JvmOverloads constructor(
             fpsLabel = PerformanceManager.hudLabel()
 
             // Pace to the profile's target FPS
-            val target = PerformanceManager.activeProfile.frameTimeMs
+            val target = PerformanceManager.frameTimeMsOf(PerformanceManager.activeProfile)
             val sleepMs = target - frameMs
             if (sleepMs > 2) {
                 try { Thread.sleep(sleepMs - 2) } catch (e: InterruptedException) { running = false }

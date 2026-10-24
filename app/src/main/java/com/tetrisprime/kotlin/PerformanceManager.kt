@@ -34,9 +34,9 @@ object PerformanceManager {
         ECO("eco", 32, 1.0f, 18, false)
     }
 
-    /** Frame budget per profile (ms). */
-    val Profile.frameTimeMs: Long
-        get() = (1000L + targetFps - 1) / targetFps  // ceil(1000/fps)
+    /** Frame budget per profile in ms (ceil of 1000/fps). */
+    fun frameTimeMsOf(profile: Profile): Long =
+        (1000L + profile.targetFps - 1) / profile.targetFps  // ceil(1000/fps)
 
     /** Supported selection values (stored in Settings.performance). */
     val SELECTIONS = listOf("auto", "ultra", "high", "balanced", "eco")
@@ -99,7 +99,7 @@ object PerformanceManager {
 
         if (!autoDetect) return
 
-        val budget = activeProfile.frameTimeMs
+        val budget = frameTimeMsOf(activeProfile)
         if (frameMs > (budget + budget / 4)) {
             // Frame overran budget by >25%
             slowFramesSince += frameMs
