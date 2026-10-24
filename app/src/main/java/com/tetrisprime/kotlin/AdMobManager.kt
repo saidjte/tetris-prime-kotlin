@@ -1,6 +1,7 @@
 package com.tetrisprime.kotlin
 
 import android.app.Activity
+import android.content.Context
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -63,14 +64,14 @@ object AdMobManager {
     private var currentActivity: Activity? = null
 
     /** Called once from Application.onCreate or first Activity.onCreate. */
-    fun init(activity: Activity) {
+    fun init(context: Context) {
         if (!initialized.compareAndSet(false, true)) return
         try {
-            MobileAds.initialize(activity) { /* init complete */ }
-            currentActivity = activity
-            // Pre-load interstitial + rewarded so they're ready when needed
-            preloadInterstitial(activity)
-            preloadRewarded(activity)
+            MobileAds.initialize(context) { /* init complete */ }
+            // Pre-load interstitial + rewarded so they're ready when needed.
+            // We need an Activity context for ad load calls, so defer preloading
+            // to first showBanner/showInterstitial/showRewarded call from an Activity.
+            currentActivity = null
         } catch (e: Exception) {
             android.util.Log.e("AdMobManager", "init failed: ${e.message}")
         }
@@ -85,9 +86,15 @@ object AdMobManager {
     /**
      * Show the banner ad at the bottom of the activity's content view.
      * Creates a FrameLayout overlay host that floats above all other content.
+     * Also triggers preloading of interstitial/rewarded if not yet loaded.
      */
     fun showBanner(activity: Activity) {
         try {
+            // Lazy preload interstitial/rewarded on first banner show
+            if (interstitialAd == null) preloadInterstitial(activity)
+            if (rewardedAd == null) preloadRewarded(activity)
+            currentActivity = activity
+
             if (bannerAd != null) {
                 bannerAd?.visibility = View.VISIBLE
                 return

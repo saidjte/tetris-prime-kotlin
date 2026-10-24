@@ -426,7 +426,7 @@ class GameActivity : AppCompatActivity() {
 
         // Phase 0: show interstitial ad after game over (every 3rd game)
         try {
-            val gamesPlayed = StatsManager.load(this).games
+            val gamesPlayed = StatsManager.load(this).gamesPlayed
             if (gamesPlayed % 3 == 0 && AdMobManager.isInterstitialReady()) {
                 AdMobManager.showInterstitial(this) {
                     // No-op on close — let user continue browsing
