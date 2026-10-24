@@ -391,3 +391,54 @@ Stage Summary:
 - تم إنشاء release v1.11.1 (release_id 422723171)
 - رفع APK (4.85MB, asset_id 672232324) + source (asset_id 672232592)
 - verify HTTP 302 (redirect طبيعي إلى CDN)
+
+---
+Task ID: phase-0-bridges-content
+Agent: main
+Task: Phase 0 — استنساخ الجسور الأربعة (AndroidAd/AndroidGift/AndroidExit/AndroidTTS) + AdMob integration + مزامنة المحتوى الكامل من APK الأصلي v4.80.0
+
+Work Log:
+- حملت tetris-prime-src-4.80.0.zip من Google Drive — هو APK مفكوك بـ apktool (ليس React Native كما اعتقد المستخدم)
+- أثبتُ بالأدلة أنه WebView يحمّل Next.js PWA: START_URL=appassets.androidplatform.net، TURBOPACK marker، D.jsx (887 مرة)، _next/static/ directory، WebView class في MainActivity.smali
+- نسخت من APK إلى مشروع Kotlin:
+  * assets/www/tetris-content.json (303KB — 101 مهمة + 7 عوالم + 17 إنجاز + daily config)
+  * assets/www/gift-codes.json (8 أكواد)
+  * assets/www/sfx/ (22 MP3)
+  * assets/www/voices/ (276 MP3 — raffina voice pack)
+  * res/font/ (Cairo, Changa, Orbitron, SpicySale)
+- أنشأت ContentLoader.kt — parser ل tetris-content.json مع typed data classes (Mission/Stage/World/AchievementDef) + 17 JS achievements مُضمّنة (binary/cumulative + value paths مثل records.sprint<60000)
+- أنشأت AdMobManager.kt — 3 أنواع إعلانات:
+  * Banner (FrameLayout overlay في ModeSelectActivity)
+  * Interstitial (كل 3 ألعاب عند game over)
+  * Rewarded (لاستمرار اللعب بعد topout)
+  * معرفات حقيقية من APK + test IDs في debug
+- أنشأت GiftBridge.kt — httpGet(requestId, url, callback) يجلب gift-codes.json من Gist + fallback إلى bundled
+- أنشأت ExitBridge.kt — exitApp(activity) = finishAffinity()
+- أنشأت TtsBridge.kt — captions للإعاقة البصرية (TextToSpeech)
+- أنشأت TetrisApp.kt — Application class يُهيّئ AdMob + TTS + AppContextHolder
+- حدّثت AndroidManifest.xml:
+  * 8 أذونات جديدة (INTERNET, ACCESS_NETWORK_STATE, WAKE_LOCK, FOREGROUND_SERVICE, 3 AdServices)
+  * AdMob app_id meta-data
+  * configChanges على كل activities (no recreation on rotation)
+  * tools:replace على AdActivity (لحل تعارض configChanges مع SDK)
+  * android:name=".TetrisApp"
+- حدّثت build.gradle:
+  * + play-services-ads:23.0.0
+  * versionCode=15 / versionName=1.12.0
+  * buildConfig=true + BuildConfig.DEBUG field
+- حدّثت GiftCodes.kt — تحميل من gift-codes.json بدلاً من قائمة ثابتة + updateRegistry() للتحديث الشبكي
+- حدّثت GameActivity.kt — rewarded ad للاستمرار + interstitial كل 3 ألعاب + hideBanner أثناء اللعب
+- حدّثت ModeSelectActivity.kt — banner + back-press exit مع تأكيد (مرة واحدة Toast، ثانية exit)
+- حدّثت GiftCodeActivity.kt — تحديث الأكواد من الشبكة عند الفتح
+
+أخطاء البناء وإصلاحاتها:
+- محاولة 1: manifest merger failed — AdActivity configChanges تعارض مع SDK → أضفت tools:replace="android:configChanges"
+- محاولة 2: GiftBridge.kt مفقود (Write قُطع برسالة المستخدم) + StatsManager.games (الحقل الصحيح gamesPlayed) + AdMobManager.init(Activity) لا يقبل Application → أصلحت الثلاثة
+- محاولة 3: نجح البناء في run 40108947815
+
+Stage Summary:
+- Phase 0 مكتملة: 4 جسور JS↔Native + AdMob (3 أنواع) + content sync كامل
+- حجم APK قفز من 4.85MB إلى 13.8MB (+276 voice + 22 SFX + 4 fonts + 303KB JSON)
+- release v1.12.0 (release_id=422828748) مع APK + source code
+- نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.11.1 بدون إزالة
+- التالي: Phase 2 — ربط 22 SFX + 276 voice events بأحداث المحرك
