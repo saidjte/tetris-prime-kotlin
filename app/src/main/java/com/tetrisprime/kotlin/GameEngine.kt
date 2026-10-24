@@ -63,7 +63,8 @@ open class GameEngine(
     var lastClearWasPerfect = false
         protected set
     var lastActionWasRotate = false
-        protected set
+    /** Phase 11 visual — set to true on hardDrop(), reset by GameView after it draws the trail. */
+    var lastEventWasHardDrop = false
 
     // Lock delay system
     private var lockAccumulator = 0L
@@ -242,6 +243,7 @@ open class GameEngine(
         val dropDistance = ghost.y - p.y
         score += dropDistance * 2L
         currentPiece = ghost
+        lastEventWasHardDrop = true
         lockPiece()
     }
 

@@ -323,10 +323,10 @@ class GameActivity : AppCompatActivity() {
 
                     gameView.invalidate()
 
-                    scoreText.text = "Score: ${eng.score}"
-                    levelText.text = "Level: ${eng.level}"
-                    linesText.text = "Lines: ${eng.lines}"
-                    comboText.text = if (eng.combo > 0) "Combo: ×${eng.combo}" else ""
+                    scoreText.text = "${eng.score}"
+                    levelText.text = "L${eng.level}"
+                    linesText.text = "${eng.lines}"
+                    comboText.text = if (eng.combo > 0) "×${eng.combo}" else ""
 
                     if (statusText.text.isEmpty()) {
                         statusText.text = when {

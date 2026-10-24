@@ -109,10 +109,10 @@ class MainActivity : AppCompatActivity() {
                 gameView.update(delta)
 
                 val engine = gameView.gameEngine
-                scoreText.text = "Score: ${engine.score}"
-                levelText.text = "Level: ${engine.level}"
-                linesText.text = "Lines: ${engine.lines}"
-                comboText.text = if (engine.combo > 0) "Combo: ×${engine.combo}" else ""
+                scoreText.text = "${engine.score}"
+                levelText.text = "L${engine.level}"
+                linesText.text = "${engine.lines}"
+                comboText.text = if (engine.combo > 0) "×${engine.combo}" else ""
 
                 statusText.text = when {
                     engine.isGameOver -> "GAME OVER"
