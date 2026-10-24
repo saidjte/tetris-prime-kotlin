@@ -39,6 +39,18 @@ class GameActivity : AppCompatActivity() {
     private var lastSnapshotTime = 0L
     private val snapshotIntervalMs = 2000L
 
+    // Phase 2: audio diff-tracking — detect engine events for SFX/voice
+    private var prevLines = 0
+    private var prevLevel = 1
+    private var prevCombo = -1
+    private var prevScore = 0L
+    private var prevTSpins = 0
+    private var prevPerfectClears = 0
+    private var prevTSpinType: TSpinType = TSpinType.NONE
+    private var prevGameStatus: GameStatus = GameStatus.COUNTDOWN
+    private var prevCountdown = 3
+    private var gameStartTimeMs = 0L
+
     // Phase 7 input subsystems
     private lateinit var haptic: HapticController
     private lateinit var keyboardDispatcher: KeyboardGamepadDispatcher
@@ -98,6 +110,20 @@ class GameActivity : AppCompatActivity() {
         // and the countdown begins. Without this call, the engine sits in its initial
         // state (empty board, null currentPiece) and the game appears frozen.
         engine?.start()
+
+        // Phase 2: initialize audio diff-tracking state from engine's starting values
+        engine?.let { eng ->
+            prevLines = eng.lines
+            prevLevel = eng.level
+            prevCombo = eng.combo
+            prevScore = eng.score
+            prevTSpins = eng.tspins
+            prevPerfectClears = eng.perfectClears
+            prevTSpinType = eng.lastClearWasTSpin
+            prevGameStatus = eng.status
+            prevCountdown = eng.countdown
+        }
+        gameStartTimeMs = 0L  // set on first PLAYING frame
 
         // Phase 8: capture mission/adventure index for completion tracking
         missionIndex = intent.getIntExtra("mission_index", -1)
@@ -171,23 +197,29 @@ class GameActivity : AppCompatActivity() {
 
     /**
      * Phase 7 — single dispatch entry point.
-     * Translates InputSystem.Action into GameEngine calls.
+     * Translates InputSystem.Action into GameEngine calls + SFX/voice triggers.
      */
     private fun dispatchAction(action: InputSystem.Action) {
         val eng = engine ?: return
+        val audio = audioEngine ?: return
+        audio.onInput()  // reset idle timer on any input
         when (action) {
-            InputSystem.Action.MOVE_LEFT       -> eng.move(-1)
-            InputSystem.Action.MOVE_RIGHT      -> eng.move(1)
-            InputSystem.Action.ROTATE_CW       -> eng.rotate(1)
-            InputSystem.Action.ROTATE_CCW      -> eng.rotate(-1)
-            InputSystem.Action.SOFT_DROP_START -> eng.setSoftDropping(true)
-            InputSystem.Action.SOFT_DROP_STOP  -> eng.setSoftDropping(false)
-            InputSystem.Action.HARD_DROP       -> eng.hardDrop()
-            InputSystem.Action.HOLD            -> eng.hold()
-            InputSystem.Action.PAUSE           -> eng.togglePause()
+            InputSystem.Action.MOVE_LEFT       -> { eng.move(-1); audio.playMove() }
+            InputSystem.Action.MOVE_RIGHT      -> { eng.move(1); audio.playMove() }
+            InputSystem.Action.ROTATE_CW       -> { eng.rotate(1); audio.playRotate() }
+            InputSystem.Action.ROTATE_CCW      -> { eng.rotate(-1); audio.playRotate() }
+            InputSystem.Action.SOFT_DROP_START -> { eng.setSoftDropping(true); audio.playSoftDrop() }
+            InputSystem.Action.SOFT_DROP_STOP  -> { eng.setSoftDropping(false) }
+            InputSystem.Action.HARD_DROP       -> { eng.hardDrop(); audio.playHardDrop() }
+            InputSystem.Action.HOLD            -> { eng.hold(); audio.playHold(); audio.voiceSaved() }
+            InputSystem.Action.PAUSE           -> {
+                eng.togglePause()
+                if (eng.isPaused) audio.onGamePause() else audio.onGameResume()
+            }
             InputSystem.Action.RESTART         -> {
                 eng.start()
                 battleAI?.reset()
+                audio.onGameStart(eng.mode)
             }
         }
     }
@@ -215,34 +247,38 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun setupControls() {
-        setupRepeatButton(R.id.btnLeft) { engine?.move(-1) ?: false; haptic.light(); true }
-        setupRepeatButton(R.id.btnRight) { engine?.move(1) ?: false; haptic.light(); true }
+        setupRepeatButton(R.id.btnLeft) { engine?.move(-1) ?: false; haptic.light(); audioEngine?.playMove(); audioEngine?.onInput(); true }
+        setupRepeatButton(R.id.btnRight) { engine?.move(1) ?: false; haptic.light(); audioEngine?.playMove(); audioEngine?.onInput(); true }
 
         findViewById<Button>(R.id.btnRotate).setOnClickListener {
-            engine?.rotate(1); haptic.light()
+            engine?.rotate(1); haptic.light(); audioEngine?.playRotate(); audioEngine?.onInput()
         }
 
         val softDropBtn = findViewById<Button>(R.id.btnSoftDrop)
         softDropBtn.setOnTouchListener { _, event ->
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> { engine?.setSoftDropping(true); haptic.light() }
+                MotionEvent.ACTION_DOWN -> { engine?.setSoftDropping(true); haptic.light(); audioEngine?.playSoftDrop(); audioEngine?.onInput() }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> engine?.setSoftDropping(false)
             }
             false
         }
 
         findViewById<Button>(R.id.btnHardDrop).setOnClickListener {
-            engine?.hardDrop(); haptic.medium()
+            engine?.hardDrop(); haptic.medium(); audioEngine?.playHardDrop(); audioEngine?.onInput()
         }
         findViewById<Button>(R.id.btnHold).setOnClickListener {
-            engine?.hold(); haptic.light()
+            engine?.hold(); haptic.light(); audioEngine?.playHold(); audioEngine?.voiceSaved(); audioEngine?.onInput()
         }
         findViewById<Button>(R.id.btnPause).setOnClickListener {
-            engine?.togglePause()
+            val eng = engine ?: return@setOnClickListener
+            eng.togglePause()
+            if (eng.isPaused) audioEngine?.onGamePause() else audioEngine?.onGameResume()
         }
         findViewById<Button>(R.id.btnRestart).setOnClickListener {
-            engine?.start()
+            val eng = engine ?: return@setOnClickListener
+            eng.start()
             battleAI?.reset()
+            audioEngine?.onGameStart(eng.mode)
         }
     }
 
@@ -314,15 +350,81 @@ class GameActivity : AppCompatActivity() {
                 engine?.let { eng ->
                     if (eng.status == GameStatus.COUNTDOWN) {
                         eng.updateCountdown(delta)
+                        // Phase 2: countdown tick voice
+                        if (eng.countdown != prevCountdown) {
+                            prevCountdown = eng.countdown
+                            audioEngine?.onCountdownTick()
+                            if (eng.countdown == 0) audioEngine?.onCountdownEnd()
+                        }
                     } else if (eng.status == GameStatus.PLAYING) {
                         (eng as ModeGameEngine).updateMode(delta)
+                        if (gameStartTimeMs == 0L) gameStartTimeMs = now
+
+                        // Phase 2: state-based voice cues (warm/idle/danger/zenCalm)
+                        val elapsedMs = now - gameStartTimeMs
+                        audioEngine?.onGameTick(elapsedMs, eng.isInDanger())
+
+                        // Phase 2: line clear → SFX + voice
+                        if (eng.lines > prevLines) {
+                            val linesCleared = eng.lines - prevLines
+                            audioEngine?.playClear(linesCleared)
+                            audioEngine?.voiceClear(linesCleared)
+                            // T-Spin (only if last clear was a T-Spin)
+                            if (eng.lastClearWasTSpin != TSpinType.NONE && eng.lastClearWasTSpin != prevTSpinType) {
+                                audioEngine?.playTSpin(linesCleared)
+                                audioEngine?.voiceTSpin(linesCleared)
+                            }
+                            // Perfect clear
+                            if (eng.lastClearWasPerfect && !prevPerfectClears.let { false }) {
+                                audioEngine?.voicePerfectClear()
+                            }
+                            // B2B
+                            if (eng.b2bActive && eng.lastClearWasDifficult) {
+                                audioEngine?.voiceB2B()
+                            }
+                            // Combo
+                            if (eng.combo >= 1) audioEngine?.voiceCombo(eng.combo + 1)
+                            prevLines = eng.lines
+                            prevTSpinType = eng.lastClearWasTSpin
+                            prevPerfectClears = eng.perfectClears
+                        }
+                        // Combo regression — reset prevCombo
+                        if (eng.combo < prevCombo) prevCombo = eng.combo - 1
+
+                        // Phase 2: level up
+                        if (eng.level > prevLevel) {
+                            audioEngine?.playLevelUp()
+                            audioEngine?.voiceLevelUp(eng.level)
+                            prevLevel = eng.level
+                        }
+
+                        // Phase 2: score milestone (10k/25k/50k/100k/250k/500k/1m)
+                        if (eng.score > prevScore) {
+                            audioEngine?.onScoreChange(eng.score)
+                            // Sprint progress (10/20/30/40 lines)
+                            if (eng.mode == GameMode.SPRINT) {
+                                audioEngine?.onSprintProgress(eng.lines)
+                            }
+                            prevScore = eng.score
+                        }
+
+                        // Phase 2: line milestone (25/50/100/150/200)
+                        audioEngine?.onTotalLinesChange(eng.lines)
+
+                        // Phase 2: lock sound (piece placed) — detected via piecesPlaced
+                        // (handled via GameView's lockFlash which already detects this)
                     }
 
-                    // Phase 8: detect game-over transition
+                    // Phase 2: game-over audio (fire once when transitioning to GAME_OVER)
                     if (eng.isGameOver && !continuePromptShown) {
                         continuePromptShown = true
+                        audioEngine?.onGameOver()
+                        if (eng.mode == GameMode.MISSION || eng.mode == GameMode.ADVENTURE || eng.mode == GameMode.DAILY) {
+                            audioEngine?.voiceWin()
+                        }
                         onGameOverFirstDetected(eng)
                     }
+                    prevGameStatus = eng.status
 
                     gameView.invalidate()
 
