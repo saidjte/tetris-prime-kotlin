@@ -22,12 +22,33 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Restore keystore
+        # Prefer secret-stored keystore (secure, recoverable); fall back to repo copy
+        # so first build after this change works even if secrets aren't set yet.
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "Using keystore from GitHub Actions secret SIGNING_KEYSTORE_BASE64"
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > debug.keystore
+            echo "Keystore restored: $(stat -c%s debug.keystore) bytes"
+          elif [ -f debug.keystore ]; then
+            echo "Using keystore from repo (fallback)"
+          else
+            echo "ERROR: no keystore available. Set SIGNING_KEYSTORE_BASE64 secret or commit debug.keystore"
+            exit 1
+          fi
+
       - name: Build Release APK (signed)
+        env:
+          SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Rename APK
         run: |
-          VERSION="1.6.0"
+          VERSION="1.7.0"
           find app/build/outputs/apk -name "*.apk" | head -1 | xargs -I{} cp {} tetris-prime-kotlin-${VERSION}.apk
           ls -la tetris-prime-kotlin-*.apk
 

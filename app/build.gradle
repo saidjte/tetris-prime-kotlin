@@ -3,12 +3,10 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-// Signing config — uses debug.keystore for consistent updates
-def keystoreProperties = new Properties()
+// Signing config — uses debug.keystore for consistent updates.
+// Credentials can be overridden by env vars (CI uses GitHub Actions secrets).
+// If env vars are absent, falls back to the literal defaults used historically.
 def keystoreFile = rootProject.file("debug.keystore")
-if (keystoreFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystoreFile))
-}
 
 android {
     namespace 'com.tetrisprime.kotlin'
@@ -18,17 +16,17 @@ android {
         applicationId "com.tetrisprime.kotlin"
         minSdk 26
         targetSdk 34
-        versionCode 7
-        versionName "1.6.0"
+        versionCode 8
+        versionName "1.7.0"
     }
 
     signingConfigs {
         release {
             if (keystoreFile.exists()) {
                 storeFile keystoreFile
-                storePassword 'android'
-                keyAlias 'tetris-prime'
-                keyPassword 'android'
+                storePassword System.getenv('SIGNING_KEYSTORE_PASSWORD') ?: 'android'
+                keyAlias   System.getenv('SIGNING_KEY_ALIAS')         ?: 'tetris-prime'
+                keyPassword System.getenv('SIGNING_KEY_PASSWORD')     ?: 'android'
             }
         }
     }

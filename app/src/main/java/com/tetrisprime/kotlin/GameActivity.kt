@@ -1,6 +1,7 @@
 package com.tetrisprime.kotlin
 
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.widget.Button
 import android.widget.TextView
@@ -9,6 +10,12 @@ import androidx.appcompat.app.AppCompatActivity
 /**
  * Game activity that supports all game modes.
  * Replaces MainActivity with mode-aware gameplay.
+ *
+ * Phase 7 additions:
+ *   - Keyboard + gamepad via onKeyDown/onKeyUp (DAS=150ms, ARR=35ms)
+ *   - Gestures on the playfield (swipe = move/hold/soft-drop, tap = rotate, long-press = hard-drop)
+ *   - Haptic feedback on every input action
+ *   - Reads user Settings to enable/disable subsystems
  */
 class GameActivity : AppCompatActivity() {
 
@@ -24,6 +31,12 @@ class GameActivity : AppCompatActivity() {
     private var audioEngine: AudioEngine? = null
     private var battleAI: BattleAI? = null
     private var lastUpdateTime = 0L
+
+    // Phase 7 input subsystems
+    private lateinit var haptic: HapticController
+    private lateinit var keyboardDispatcher: KeyboardGamepadDispatcher
+    private var gestureDispatcher: GestureDispatcher? = null
+    private var settings: Settings = Settings()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,7 +125,57 @@ class GameActivity : AppCompatActivity() {
         // Replace the GameView's engine with our mode engine
         gameView.setEngine(engine!!)
 
+        // Phase 7: initialize input subsystems
+        settings = SettingsManager.load(this)
+        haptic = HapticController(this).apply { enabled = settings.gestures }  // re-use gestures toggle for haptics master switch
+        keyboardDispatcher = KeyboardGamepadDispatcher(haptic) { action -> dispatchAction(action) }
+        if (settings.gestures) {
+            gestureDispatcher = GestureDispatcher(haptic) { action -> dispatchAction(action) }
+            gameView.setOnTouchListener { _, event ->
+                gestureDispatcher?.onTouchEvent(event) ?: false
+                // Do not consume — let the view still receive invalidates
+            }
+        }
+
+        // Hide on-screen buttons if user opted in
+        if (settings.hideCtlButtons) {
+            findViewById<android.view.View>(R.id.controlsLayout).visibility = android.view.View.GONE
+        }
+
         setupControls()
+    }
+
+    /**
+     * Phase 7 — single dispatch entry point.
+     * Translates InputSystem.Action into GameEngine calls.
+     */
+    private fun dispatchAction(action: InputSystem.Action) {
+        val eng = engine ?: return
+        when (action) {
+            InputSystem.Action.MOVE_LEFT       -> eng.move(-1)
+            InputSystem.Action.MOVE_RIGHT      -> eng.move(1)
+            InputSystem.Action.ROTATE_CW       -> eng.rotate(1)
+            InputSystem.Action.ROTATE_CCW      -> eng.rotate(-1)
+            InputSystem.Action.SOFT_DROP_START -> eng.setSoftDropping(true)
+            InputSystem.Action.SOFT_DROP_STOP  -> eng.setSoftDropping(false)
+            InputSystem.Action.HARD_DROP       -> eng.hardDrop()
+            InputSystem.Action.HOLD            -> eng.hold()
+            InputSystem.Action.PAUSE           -> eng.togglePause()
+            InputSystem.Action.RESTART         -> {
+                eng.start()
+                battleAI?.reset()
+            }
+        }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyboardDispatcher.handleKeyDown(keyCode, event)) return true
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyboardDispatcher.handleKeyUp(keyCode, event)) return true
+        return super.onKeyUp(keyCode, event)
     }
 
     private fun getModeDisplayName(mode: GameMode): String = when (mode) {
@@ -128,23 +191,31 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun setupControls() {
-        setupRepeatButton(R.id.btnLeft) { engine?.move(-1) ?: false }
-        setupRepeatButton(R.id.btnRight) { engine?.move(1) ?: false }
+        setupRepeatButton(R.id.btnLeft) { engine?.move(-1) ?: false; haptic.light(); true }
+        setupRepeatButton(R.id.btnRight) { engine?.move(1) ?: false; haptic.light(); true }
 
-        findViewById<Button>(R.id.btnRotate).setOnClickListener { engine?.rotate(1) }
+        findViewById<Button>(R.id.btnRotate).setOnClickListener {
+            engine?.rotate(1); haptic.light()
+        }
 
         val softDropBtn = findViewById<Button>(R.id.btnSoftDrop)
         softDropBtn.setOnTouchListener { _, event ->
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> engine?.setSoftDropping(true)
+                MotionEvent.ACTION_DOWN -> { engine?.setSoftDropping(true); haptic.light() }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> engine?.setSoftDropping(false)
             }
             false
         }
 
-        findViewById<Button>(R.id.btnHardDrop).setOnClickListener { engine?.hardDrop() }
-        findViewById<Button>(R.id.btnHold).setOnClickListener { engine?.hold() }
-        findViewById<Button>(R.id.btnPause).setOnClickListener { engine?.togglePause() }
+        findViewById<Button>(R.id.btnHardDrop).setOnClickListener {
+            engine?.hardDrop(); haptic.medium()
+        }
+        findViewById<Button>(R.id.btnHold).setOnClickListener {
+            engine?.hold(); haptic.light()
+        }
+        findViewById<Button>(R.id.btnPause).setOnClickListener {
+            engine?.togglePause()
+        }
         findViewById<Button>(R.id.btnRestart).setOnClickListener {
             engine?.start()
             battleAI?.reset()

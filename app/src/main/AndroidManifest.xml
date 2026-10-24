@@ -53,6 +53,12 @@
             android:name=".LeaderboardActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+
+        <!-- Phase 7: Input customization -->
+        <activity
+            android:name=".InputSettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

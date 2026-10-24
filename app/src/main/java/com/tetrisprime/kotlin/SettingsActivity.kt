@@ -71,6 +71,21 @@ class SettingsActivity : AppCompatActivity() {
             s.addView(toggle("رموز القطع", settings.pieceSymbols) { settings = settings.copy(pieceSymbols = it); save() })
             s.addView(toggle("السماح بالدوران المستحيل", settings.allowRotation) { settings = settings.copy(allowRotation = it); save() })
             s.addView(toggle("إخفاء أزرار التحكم", settings.hideCtlButtons) { settings = settings.copy(hideCtlButtons = it); save() })
+
+            // Phase 7: link to button customization screen
+            val customizeBtn = Button(this).apply {
+                text = "🎮 تخصيص الأزرار"
+                setBackgroundColor(0xFF312E81.toInt())
+                setTextColor(0xFFF3F1FF.toInt())
+                setOnClickListener {
+                    startActivity(android.content.Intent(this@SettingsActivity, InputSettingsActivity::class.java))
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 12 }
+            }
+            s.addView(customizeBtn)
         })
 
         // Section: Language

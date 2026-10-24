@@ -1,41 +1,58 @@
 ---
-Task ID: phase-6
+Task ID: phase-7
 Agent: main
-Task: أكمل المرحلة 6 — UI Screens (Settings/Stats/Achievements/Store/Tutorial/Leaderboard + ModeSelect improvements)
+Task: أكمل المرحلة 7 — Input system (touch + keyboard + gamepad + haptics) + secure keystore backup
 
 Work Log:
-- Cloned repo from https://github.com/saidjte/tetris-prime-kotlin.git (verified at v1.5.0, versionCode=6)
-- Confirmed Phase 0-5 files all present (GameEngine, ModeGameEngine, AudioEngine, ParticleSystem, FxThemeDefinitions, BackgroundRenderer, GameView, ModeSelectActivity, etc.)
-- Created 13 new Kotlin source files implementing Phase 6 UI:
-  * SettingsManager.kt — 18 settings (audio, FX, gameplay, language), JSON-encoded, persisted to SharedPreferences
-  * SettingsActivity.kt — sectioned UI (toggles, sliders, spinners) with live-save
-  * StatsManager.kt — 21 player metrics (PlayerMetrics data class), load/save/applyGameResult
-  * StatsActivity.kt — 4 grouped cards (aggregate, clear types, records, completions)
-  * AchievementDefinitions.kt — 18 achievements with currentValue lambdas + loadUnlocked/updateUnlocked
-  * AchievementsActivity.kt — progress bars per achievement with locked/unlocked styling
-  * StoreManager.kt — currency (initial 200, computeReward formula), owned items per category, equipped items
-  * StoreActivity.kt — 3-tab UI (FX/Themes/Voice) with buy/equip actions and color swatches
-  * TutorialDefinitions.kt — 12-step walkthrough with icon, title, body, optional highlight
-  * TutorialActivity.kt — prev/next navigation + skip button
-  * LeaderboardManager.kt — per-mode top 10, time-based vs score-based sorting, wouldQualify check
-  * LeaderboardActivity.kt — mode picker + ranked table with 🥇🥈🥉 medals
-- Modified ModeSelectActivity.kt — added 3×2 navigation rail (Settings/Stats/Achievements/Store/Tutorial/Leaderboard) below mode grid
-- Modified ModeConfig.kt — extended GameResult data class with optional detailed stats fields (piecesPlaced, singleClears, doubleClears, tripleClears, tetrises, tspinMini, tspinFull, perfectClears, maxCombo, maxB2b)
-- Modified VoiceManager.kt — moved voicePacks map from instance property to companion object so StoreActivity can access statically as VoiceManager.voicePacks
-- Modified AndroidManifest.xml — registered 6 new activities (Settings/Stats/Achievements/Store/Tutorial/Leaderboard)
-- Modified app/build.gradle — versionCode 6→7, versionName 1.5.0→1.6.0
-- Modified .github/workflows/build.yml — VERSION 1.5.0→1.6.0
-- Committed as `440aa10 Phase 6: UI Screens (Settings/Stats/Achievements/Store/Tutor...`
-- Pushed to main; CI run #40046674017 PASSED
-- Downloaded APK artifact (4,766,615 bytes) + source zip (148,902 bytes)
-- Created GitHub Release v1.6.0 (release_id=422429720) with title "Tetris Prime Kotlin v1.6.0 — Phase 6: UI Screens"
-- Uploaded both APK and source zip as release assets
-- Verified both download URLs return HTTP 200
+- Verified Phase 6 release v1.6.0 at commit a7baf01 (already on GitHub, tagged)
+- === Secure signing ===
+- Encoded debug.keystore as base64 (2772 bytes → 3696 chars)
+- Created /home/z/my-project/scripts/push_signing_secrets.py using pynacl sealed box
+- Pushed 4 GitHub Actions secrets (HTTP 201 each):
+  * SIGNING_KEYSTORE_BASE64 — base64-encoded keystore binary
+  * SIGNING_KEYSTORE_PASSWORD=android
+  * SIGNING_KEY_ALIAS=tetris-prime
+  * SIGNING_KEY_PASSWORD=android
+- Updated .github/workflows/build.yml — added "Restore keystore" step that decodes secret to debug.keystore at build time (falls back to repo copy if secret absent)
+- Updated app/build.gradle — signingConfigs now reads System.getenv('SIGNING_KEYSTORE_PASSWORD') etc. with literal fallback for local builds
+- Created KEYSTORE_BACKUP.md documenting: 3 redundancy layers (secret + repo copy + local backup), recovery procedure, rotation guidance, signature verification commands
+
+- === Phase 7: Input system ===
+- Created InputManager.kt — unified InputSystem object with:
+  * Action enum (10 actions: MOVE_LEFT/RIGHT, ROTATE_CW/CCW, SOFT_DROP_START/STOP, HARD_DROP, HOLD, PAUSE, RESTART)
+  * Haptic enum (5 patterns: LIGHT/MEDIUM/HEAVY/SUCCESS/WARN with waveforms)
+  * ButtonLayout data class (buttonId, xN, yN, sizeN, visible)
+  * InputButton enum (8 buttons: LEFT, RIGHT, ROTATE_CW, ROTATE_CCW, SOFT_DROP, HARD_DROP, HOLD, PAUSE)
+  * DefaultLayouts — RIGHT_HANDED and LEFT_HANDED (mirror)
+  * LayoutStore — persistent JSON serialization to SharedPreferences (load/save/reset)
+  * HapticController — uses VibratorManager on SDK 31+, falls back to Vibrator on older
+  * KeyboardGamepadDispatcher — DAS=150ms, ARR=35ms for left/right repeat; handles DPAD/ABXY/LB/RB/Start/Select + keyboard arrows/X/Z/Space/C/P/Enter
+  * GestureDispatcher — swipe left/right=move, swipe down=soft drop, swipe up=hold, tap=rotate, long-press=hard-drop
+  * TouchButtonOverlay — renders 8 customizable buttons on a FrameLayout parent (drag-to-move + DAS/ARR repeat)
+- Created InputSettingsActivity.kt — UI to customize the 8 buttons:
+  * Drag-to-move preview area (16:9)
+  * Size slider (5%-40%)
+  * Per-button visibility toggle
+  * Button selector chips (4×2 grid of 8 buttons)
+  * "Reset to default" + "Done" bottom actions
+  * Persists changes immediately to LayoutStore
+- Modified GameActivity.kt:
+  * Added haptic + keyboardDispatcher + gestureDispatcher fields
+  * onCreate: load Settings, init HapticController, init KeyboardGamepadDispatcher with dispatchAction lambda
+  * If settings.gestures: init GestureDispatcher + setOnTouchListener on gameView
+  * If settings.hideCtlButtons: hide controlsLayout
+  * dispatchAction() — translates InputSystem.Action → GameEngine method calls
+  * onKeyDown/onKeyUp overrides — delegate to keyboardDispatcher
+  * setupControls() — added haptic feedback to all 8 existing XML buttons (light for move/rotate/soft/hold, medium for hard-drop)
+- Modified SettingsActivity.kt — added "🎮 تخصيص الأزرار" button in اللعب section that opens InputSettingsActivity
+- Modified AndroidManifest.xml — registered .InputSettingsActivity
+- Bumped app/build.gradle versionCode 7→8, versionName 1.6.0→1.7.0
+- Updated .github/workflows/build.yml VERSION 1.6.0→1.7.0
 
 Stage Summary:
-- Phase 6 COMPLETE. 6 new UI screens wired up with persistent state and currency system.
-- Same debug.keystore used → install over v1.5.0 to preserve save data.
-- Release URL: https://github.com/saidjte/tetris-prime-kotlin/releases/tag/v1.6.0
-- APK: https://github.com/saidjte/tetris-prime-kotlin/releases/download/v1.6.0/tetris-prime-kotlin-1.6.0.apk
-- Source: https://github.com/saidjte/tetris-prime-kotlin/releases/download/v1.6.0/tetris-prime-kotlin-src-1.6.0.zip
-- Next phases (7-11): Input, Special features, Translation, Storage, Performance
+- Phase 7 COMPLETE.
+- Keystore now redundantly stored: GitHub Actions secrets (encrypted, recoverable) + repo copy + documented backup procedure
+- CI uses secret-based signing by default; repo copy is fallback
+- 8 customizable buttons + gestures + keyboard + gamepad + 5 haptic patterns all wired through single InputSystem.Action funnel
+- Same signing key preserved → users can install v1.7.0 over v1.6.0 without uninstalling
+- Next: Phase 8 (Special features — daily/missions/adventure)
