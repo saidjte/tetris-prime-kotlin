@@ -5,17 +5,26 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.util.AttributeSet
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.view.View
 
 /**
- * Custom View that renders the Tetris board and current piece.
- * Renders only the visible playfield (rows 2..height-1).
+ * Phase 11 — custom SurfaceView that renders the Tetris board, pieces and FX.
+ *
+ * Rendering happens on a dedicated thread at the FPS target set by
+ * PerformanceManager (32/46/60/72 depending on profile), instead of the
+ * old View-invalidate model. This keeps particle-heavy scenes smooth and
+ * removes the dependency on the UI thread for frame pacing.
+ *
+ * Public API is identical to the previous View-based version:
+ *   setEngine, setFxPack, setTheme, setBackground, setFxLevel, update, invalidate
  */
 class GameView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
+) : SurfaceView(context, attrs, defStyleAttr), SurfaceHolder.Callback, Runnable {
 
     private var engine = GameEngine()
     val particleSystem = ParticleSystem()
@@ -25,6 +34,12 @@ class GameView @JvmOverloads constructor(
     private var cellSize = 0f
     private var boardOffsetX = 0f
     private var boardOffsetY = 0f
+
+    // Render-thread state
+    @Volatile private var running = false
+    private var renderThread: Thread? = null
+    @Volatile var fpsLabel: String = ""
+    private var lastFrameTs = 0L  // Phase 11: real delta for animation pacing
 
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(30, 255, 255, 255)
@@ -47,6 +62,11 @@ class GameView @JvmOverloads constructor(
 
     private val dangerPaint = Paint().apply {
         color = Color.argb(40, 239, 68, 68)
+    }
+
+    private val hudPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(160, 148, 163, 184)
+        textSize = 22f
     }
 
     /** Default piece colors (fallback). */
@@ -74,7 +94,7 @@ class GameView @JvmOverloads constructor(
 
     fun setEngine(newEngine: GameEngine) {
         engine = newEngine
-        invalidate()
+        markDirty()
     }
 
     /** Set the active FX pack. */
@@ -86,7 +106,7 @@ class GameView @JvmOverloads constructor(
     /** Set the active theme. */
     fun setTheme(themeId: String) {
         currentTheme = themeId
-        invalidate()
+        markDirty()
     }
 
     /** Set the active background. */
@@ -101,28 +121,120 @@ class GameView @JvmOverloads constructor(
     }
 
     init {
+        holder.addCallback(this)
+        // Focus so touch/key events are delivered
+        isFocusable = true
+        isFocusableInTouchMode = true
         engine.start()
+        // Phase 11: cap particle count by the active performance profile
+        particleSystem.applyPerformanceCap(PerformanceManager.activeProfile.maxParticles)
+        performanceListener = { profile ->
+            particleSystem.applyPerformanceCap(profile.maxParticles)
+        }
+        PerformanceManager.addListener(performanceListener)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
+    /** Phase 11: listener handle so we can detach on destroy (avoid leak). */
+    private var performanceListener: ((PerformanceManager.Profile) -> Unit)? = null
+
+    /** Detach from PerformanceManager (call from Activity.onDestroy). */
+    fun releasePerformance() {
+        performanceListener?.let { PerformanceManager.removeListener(it) }
+        performanceListener = null
+    }
+
+    // ---- SurfaceHolder.Callback ----
+
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        // Start the render thread
+        running = true
+        renderThread = Thread(this, "GameViewRender").also { it.start() }
+    }
+
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+        computeLayout(width.toFloat(), height.toFloat())
+        markDirty()
+    }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) {
+        running = false
+        try {
+            renderThread?.join(500)
+        } catch (e: InterruptedException) { /* ignore */ }
+        renderThread = null
+    }
+
+    // ---- Render thread ----
+
+    override fun run() {
+        while (running) {
+            val frameStart = System.currentTimeMillis()
+            // Phase 11: real delta so animations pace correctly at any FPS target
+            var delta = if (lastFrameTs == 0L) 16f else (frameStart - lastFrameTs).toFloat()
+            lastFrameTs = frameStart
+            if (delta > 100f) delta = 100f  // clamp after long pauses
+
+            // Draw a frame
+            val canvas = try { holder.lockCanvas() } catch (e: Exception) { null }
+            if (canvas != null) {
+                try {
+                    backgroundRenderer.update(delta)
+                    particleSystem.update(delta)
+                    doDraw(canvas)
+                } catch (e: Exception) {
+                    // Never let a render crash kill the thread
+                } finally {
+                    try { holder.unlockCanvasAndPost(canvas) } catch (e: Exception) { }
+                }
+            }
+
+            // Record frame time for auto performance detection
+            val frameMs = System.currentTimeMillis() - frameStart
+            PerformanceManager.recordFrameTime(frameMs)
+            fpsLabel = PerformanceManager.hudLabel()
+
+            // Pace to the profile's target FPS
+            val target = PerformanceManager.activeProfile.frameTimeMs
+            val sleepMs = target - frameMs
+            if (sleepMs > 2) {
+                try { Thread.sleep(sleepMs - 2) } catch (e: InterruptedException) { running = false }
+            }
+        }
+    }
+
+    /** Mark the view as needing a redraw (compat: render loop is continuous). */
+    fun markDirty() { /* continuous rendering — kept for API compatibility */ }
+
+    override fun invalidate() {
+        super.invalidate()
+        markDirty()
+    }
+
+    // ---- Layout ----
+
+    private fun computeLayout(w: Float, h: Float) {
         val boardWidth = engine.board.width
         val visibleHeight = engine.board.visibleHeight
-        cellSize = Math.min(w.toFloat() / boardWidth, h.toFloat() / visibleHeight)
+        if (w <= 0f || h <= 0f) return
+        cellSize = Math.min(w / boardWidth, h / visibleHeight)
         boardOffsetX = (w - cellSize * boardWidth) / 2
         boardOffsetY = (h - cellSize * visibleHeight) / 2
     }
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        // Render animated background
-        backgroundRenderer.update(16f)
-        backgroundRenderer.render(canvas, width.toFloat(), height.toFloat())
+    // ---- Drawing ----
 
-        // Update particles
-        particleSystem.update(16f)
+    private fun doDraw(canvas: Canvas) {
+        val w = width.toFloat()
+        val h = height.toFloat()
 
-        // Render particles (on top of everything)
+        // Background layer (skipped on eco profile for perf)
+        if (PerformanceManager.activeProfile.backgroundLayers) {
+            backgroundRenderer.render(canvas, w, h)
+        } else {
+            canvas.drawColor(0xFF0B081E.toInt())
+        }
+
+        // Particles
         particleSystem.render(canvas, boardOffsetX, boardOffsetY,
             cellSize * engine.board.width, cellSize * engine.board.visibleHeight, cellSize)
 
@@ -195,6 +307,9 @@ class GameView @JvmOverloads constructor(
                 }
             }
         }
+
+        // FPS HUD (small, top-left corner)
+        canvas.drawText(fpsLabel, 16f, 30f, hudPaint)
     }
 
     private fun drawBlock(canvas: Canvas, x: Int, y: Int, color: Int) {
@@ -218,12 +333,14 @@ class GameView @JvmOverloads constructor(
         canvas.drawRect(left, top, right, bottom, paint)
     }
 
+    /** Compatibility shim — engine ticking stays in GameActivity's loop. */
     fun update(deltaMs: Long) {
-        if (engine.status == GameStatus.COUNTDOWN) {
-            engine.updateCountdown(deltaMs)
-        } else if (engine.status == GameStatus.PLAYING) {
-            engine.update(deltaMs)
-        }
-        invalidate()
+        markDirty()
+    }
+
+    /** View sizing callback (used before the surface exists). */
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        computeLayout(w.toFloat(), h.toFloat())
     }
 }

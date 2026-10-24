@@ -90,6 +90,12 @@
             android:name=".BackupRestoreActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+
+        <!-- Phase 11: Performance profiles -->
+        <activity
+            android:name=".PerformanceProfileActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

@@ -283,3 +283,57 @@ Stage Summary:
 - Factory reset with confirmation.
 - Per-namespace storage info UI.
 - Same signing key preserved → install v1.10.0 over v1.9.0 without uninstall.
+
+---
+Task ID: phase-11
+Agent: main
+Task: إبدأ المرحلة 11 — Performance & optimization (FINAL PHASE)
+
+Work Log:
+- Read MIGRATION_PLAN.md Phase 11 spec (4 profiles + auto-detect + SurfaceView + pooling + lazy audio)
+- Created PerformanceManager.kt:
+  * 4 profiles: ULTRA (72fps/2.0×/44 particles), HIGH (60fps/1.5×/40), BALANCED (46fps/1.25×/28), ECO (32fps/1.0×/18)
+  * frameTimeMs extension property (ceil(1000/fps))
+  * Auto-detection: rolling 60-frame window; step DOWN if frames overran budget by >25% for 3s continuous; step UP if frames ran 25% under budget for 10s; ECO is floor, ULTRA is ceiling
+  * Listener API for UI (profile change notifications)
+  * applySelection("auto"/"ultra"/"high"/"balanced"/"eco") + init(ctx) from Settings
+  * hudLabel() = "profile · Nfps" for on-screen display
+- Converted GameView from View (invalidate-based) to SurfaceView with dedicated render thread:
+  * Implements SurfaceHolder.Callback + Runnable
+  * Render loop: lockCanvas → background/particle update with real delta → doDraw → unlockCanvasAndPost
+  * Real delta (clamped at 100ms) so animations pace correctly at any FPS target
+  * Frame pacing via Thread.sleep to profile target; frame times feed PerformanceManager
+  * Background layers skipped entirely on ECO profile (canvas.drawColor instead)
+  * FPS HUD drawn top-left (profile + measured fps)
+  * All render exceptions caught — thread never dies from a draw error
+  * Public API unchanged: setEngine/setFxPack/setTheme/setBackground/setFxLevel/update/invalidate all work
+  * releasePerformance() detaches listener (leak prevention, called from GameActivity.onDestroy)
+- Added particle object pooling to ParticleSystem:
+  * Particle data class: color/kind changed val→var to support re-init
+  * ArrayDeque<Particle> pool (bounded at 128)
+  * spawnParticle() helper — recycles from pool or allocates new; signature mirrors constructor
+  * All 22 emitter call sites converted (particles.add(Particle(→particles.add(spawnParticle()
+  * Firework payload explosion now spawns via pool; dead particles recycled before removal
+  * applyPerformanceCap(profileMax) intersects FX-level cap with profile cap (effectiveCap())
+- Lazy audio loading:
+  * SfxManager: SoundPool now `by lazy` — created on first use instead of AudioEngine construction
+  * MusicManager already lazy (AudioTrack created in startPlayback on first play) — no change needed
+- Created PerformanceProfileActivity.kt:
+  * Shows auto + 4 profiles with FPS/particles/render-scale details
+  * Live FPS readout ticker (500ms refresh, stopped in onPause)
+  * Current selection highlighted (✓ + purple border); tap applies instantly + persists
+- Added Settings.performance field ("auto" default) with JSON serialization
+- Modified SettingsActivity — added "الأداء" section with button showing current profile
+- Modified GameActivity — PerformanceManager.init(this) in onCreate; gameView.releasePerformance() in onDestroy
+- Modified AndroidManifest — registered .PerformanceProfileActivity
+- Marked all Phase 11 checkboxes [x] in MIGRATION_PLAN.md
+- Bumped version: versionCode 12→13, versionName 1.10.0→1.11.0
+- Updated CI workflow VERSION 1.10.0→1.11.0
+
+Stage Summary:
+- Phase 11 COMPLETE — ALL 12 PHASES (0-11) OF THE MIGRATION ARE NOW DONE.
+- SurfaceView render thread at profile-controlled FPS (32/46/60/72)
+- Auto performance detection steps profiles down/up from real frame times
+- Particle pooling eliminates GC churn in dense FX scenes
+- Lazy audio init removes audio-service dependency from app start path
+- Same signing key preserved → install v1.11.0 over v1.10.0 without uninstall

@@ -10,6 +10,7 @@ import kotlin.random.Random
 
 /**
  * A single particle in the particle system.
+ * Phase 11: all fields are mutable to support object pooling.
  */
 data class Particle(
     var x: Float,
@@ -18,12 +19,12 @@ data class Particle(
     var vy: Float,
     var life: Float,       // remaining life in ms
     var maxLife: Float,    // total life in ms
-    val color: Int,
+    var color: Int,
     var size: Float,
     var rot: Float = 0f,
     var spin: Float = 0f,
     var seed: Float = 0f,
-    val kind: Int = 0,     // particle render type
+    var kind: Int = 0,     // particle render type
     var payload: Int = 0   // extra data (e.g., burst count for fireworks)
 )
 
@@ -81,6 +82,43 @@ object ParticleKind {
 class ParticleSystem {
 
     private val particles = mutableListOf<Particle>()
+
+    // Phase 11: object pool — recycles dead Particle instances to avoid GC churn.
+    private val particlePool = ArrayDeque<Particle>()
+    private const val MAX_POOL_SIZE = 128
+
+    /**
+     * Obtain a particle (from the pool if available, otherwise new), add it
+     * to the active list, and return it. Signature mirrors the Particle
+     * constructor so every emitter call site stays unchanged.
+     */
+    private fun spawnParticle(
+        x: Float, y: Float, vx: Float, vy: Float,
+        life: Float, maxLife: Float, color: Int, size: Float,
+        rot: Float = 0f, spin: Float = 0f, seed: Float = 0f,
+        kind: Int = 0, payload: Int = 0
+    ): Particle {
+        val recycled = particlePool.removeFirstOrNull()
+        val p: Particle
+        if (recycled != null) {
+            recycled.x = x; recycled.y = y; recycled.vx = vx; recycled.vy = vy
+            recycled.life = life; recycled.maxLife = maxLife; recycled.color = color
+            recycled.size = size; recycled.rot = rot; recycled.spin = spin
+            recycled.seed = seed; recycled.kind = kind; recycled.payload = payload
+            p = recycled
+        } else {
+            p = Particle(x, y, vx, vy, life, maxLife, color, size, rot, spin, seed, kind, payload)
+        }
+        particles.add(p)
+        return p
+    }
+
+    /** Return a dead particle to the pool (bounded). */
+    private fun recycle(p: Particle) {
+        if (particlePool.size < MAX_POOL_SIZE) {
+            particlePool.addLast(p)
+        }
+    }
     private val blooms = mutableListOf<Bloom>()
     private val floatingTexts = mutableListOf<FloatingText>()
     private var confettiCount = 0
@@ -92,6 +130,15 @@ class ParticleSystem {
     private var fxLevel = "high"
     private var fxMul: Float = 1.0f
     private var maxParticles = 48
+
+    // Phase 11: performance profile cap (set via applyPerformanceCap).
+    @Volatile private var particleCapOverride: Int? = null
+
+    /** Effective particle cap = FX level cap intersected with profile cap. */
+    private fun effectiveCap(): Int {
+        val cap = particleCapOverride
+        return if (cap != null && cap < maxParticles) cap else maxParticles
+    }
 
     // Current FX pack colors
     private var packColors = listOf("#8B5CF6", "#EC4899", "#22D3EE", "#FBBF24", "#34D399")
@@ -116,6 +163,11 @@ class ParticleSystem {
         packColors = colors
     }
 
+    /** Phase 11: intersect particle cap with the active performance profile. */
+    fun applyPerformanceCap(profileMaxParticles: Int) {
+        particleCapOverride = profileMaxParticles
+    }
+
     /** Get a random color from the current pack. */
     private fun randomColor(): Int {
         val hex = packColors[random.nextInt(packColors.size)]
@@ -131,7 +183,7 @@ class ParticleSystem {
     fun onClear(linesCleared: Int, x: Float, y: Float, packId: String = "classic") {
         if (!isEnabled()) return
 
-        val available = maxParticles - particles.size
+        val available = effectiveCap() - particles.size
         if (available <= 0) return
 
         when (packId) {
@@ -196,7 +248,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = random.nextFloat() * 2f * Math.PI.toFloat()
             val speed = (260 + 300 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 20,
                 y = y + (random.nextFloat() - 0.5f) * 14,
                 vx = cos(angle) * speed,
@@ -213,7 +265,7 @@ class ParticleSystem {
     private fun emitStars(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((12 + 8 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 80,
                 y = y + (random.nextFloat() - 0.5f) * 30,
                 vx = (random.nextFloat() - 0.5f) * 120 * fxMul,
@@ -232,7 +284,7 @@ class ParticleSystem {
     private fun emitBubbles(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((10 + 8 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 60,
                 y = y + (random.nextFloat() - 0.5f) * 24,
                 vx = (random.nextFloat() - 0.5f) * 60 * fxMul,
@@ -249,7 +301,7 @@ class ParticleSystem {
     private fun emitElectric(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((7 + 5 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 30,
                 y = y + (random.nextFloat() - 0.5f) * 16,
                 vx = (random.nextFloat() - 0.5f) * 760 * fxMul,
@@ -266,7 +318,7 @@ class ParticleSystem {
     private fun emitFireworks(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((3 + lines / 2) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 50,
                 y = y + (random.nextFloat() - 0.5f) * 18,
                 vx = (random.nextFloat() - 0.5f) * 90 * fxMul,
@@ -284,7 +336,7 @@ class ParticleSystem {
     private fun emitNeonRain(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((12 + 5 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 80,
                 y = y - 30 + 40 * random.nextFloat(),
                 vx = (random.nextFloat() - 0.5f) * 40 * fxMul,
@@ -303,7 +355,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = -Math.PI.toFloat() / 2 + (random.nextFloat() - 0.5f) * 2.4f
             val speed = (90 + 220 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 30,
                 y = y + (random.nextFloat() - 0.5f) * 18,
                 vx = cos(angle) * speed,
@@ -322,7 +374,7 @@ class ParticleSystem {
     private fun emitPhoenix(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((9 + 5 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 55,
                 y = y + (random.nextFloat() - 0.5f) * 16,
                 vx = (random.nextFloat() - 0.5f) * 70 * fxMul,
@@ -341,7 +393,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = -Math.PI.toFloat() / 2 + (random.nextFloat() - 0.5f) * 2.6f
             val speed = (180 + 320 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 26,
                 y = y + (random.nextFloat() - 0.5f) * 12,
                 vx = cos(angle) * speed,
@@ -362,7 +414,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = random.nextFloat() * 2f * Math.PI.toFloat()
             val speed = (110 + 170 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + cos(angle) * (4 + 22 * random.nextFloat()),
                 y = y + sin(angle) * (3 + 14 * random.nextFloat()),
                 vx = -sin(angle) * speed,
@@ -379,7 +431,7 @@ class ParticleSystem {
     private fun emitAurora(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((6 + 3 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 80,
                 y = y + (random.nextFloat() - 0.5f) * 26,
                 vx = (random.nextFloat() - 0.5f) * 30 * fxMul,
@@ -398,7 +450,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = random.nextFloat() * 2f * Math.PI.toFloat()
             val speed = (300 + 400 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x, y = y,
                 vx = cos(angle) * speed,
                 vy = sin(angle) * speed,
@@ -414,7 +466,7 @@ class ParticleSystem {
     private fun emitTsunami(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((15 + 6 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 60,
                 y = y + (random.nextFloat() - 0.5f) * 20,
                 vx = ((if (random.nextBoolean()) 1 else -1) * (200 + 200 * random.nextFloat())) * fxMul,
@@ -431,7 +483,7 @@ class ParticleSystem {
     private fun emitInferno(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((18 + 7 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 40,
                 y = y + (random.nextFloat() - 0.5f) * 16,
                 vx = (random.nextFloat() - 0.5f) * 100 * fxMul,
@@ -448,7 +500,7 @@ class ParticleSystem {
     private fun emitBlizzard(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((16 + 6 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 70,
                 y = y - 20 + 30 * random.nextFloat(),
                 vx = (random.nextFloat() - 0.5f) * 60 * fxMul,
@@ -469,7 +521,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = -Math.PI.toFloat() / 2 + (random.nextFloat() - 0.5f) * 1.5f
             val speed = (300 + 400 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 30,
                 y = y,
                 vx = cos(angle) * speed,
@@ -486,7 +538,7 @@ class ParticleSystem {
     private fun emitEarthquake(lines: Int, x: Float, y: Float, available: Int) {
         val count = minOf(((12 + 5 * lines) * fxMul).toInt(), available)
         for (i in 0 until count) {
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + (random.nextFloat() - 0.5f) * 50,
                 y = y + (random.nextFloat() - 0.5f) * 20,
                 vx = (random.nextFloat() - 0.5f) * 200 * fxMul,
@@ -504,7 +556,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = random.nextFloat() * 2f * Math.PI.toFloat()
             val radius = 20 + 30 * random.nextFloat()
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + cos(angle) * radius,
                 y = y + sin(angle) * radius * 0.5f,
                 vx = -sin(angle) * 150 * fxMul,
@@ -523,7 +575,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = random.nextFloat() * 2f * Math.PI.toFloat()
             val speed = (400 + 300 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x, y = y,
                 vx = cos(angle) * speed,
                 vy = sin(angle) * speed,
@@ -542,7 +594,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = random.nextFloat() * 2f * Math.PI.toFloat()
             val speed = (200 + 300 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x, y = y,
                 vx = cos(angle) * speed,
                 vy = sin(angle) * speed - 60,
@@ -559,7 +611,7 @@ class ParticleSystem {
         for (i in 0 until count) {
             val angle = random.nextFloat() * 2f * Math.PI.toFloat()
             val speed = (100 + 200 * random.nextFloat()) * fxMul
-            particles.add(Particle(
+            particles.add(spawnParticle(
                 x = x + cos(angle) * 10,
                 y = y + sin(angle) * 10,
                 vx = cos(angle) * speed,
@@ -592,10 +644,10 @@ class ParticleSystem {
                 // Firework: explode payload
                 if (p.kind == ParticleKind.FIREWORK && p.payload > 0) {
                     for (i in 0 until p.payload) {
-                        if (particles.size >= maxParticles) break
+                        if (particles.size >= effectiveCap()) break
                         val angle = random.nextFloat() * 2f * Math.PI.toFloat()
                         val speed = 100 + 150 * random.nextFloat()
-                        particles.add(Particle(
+                        spawnParticle(
                             x = p.x, y = p.y,
                             vx = cos(angle) * speed,
                             vy = sin(angle) * speed,
@@ -603,16 +655,18 @@ class ParticleSystem {
                             maxLife = 600f,
                             color = p.color,
                             size = 2 + 2 * random.nextFloat()
-                        ))
+                        )
                     }
                 }
+                recycle(p)
                 pit.remove()
             }
         }
 
         // Cap particles
-        if (particles.size > maxParticles) {
-            particles.subList(0, particles.size - maxParticles).clear()
+        val cap = effectiveCap()
+        if (particles.size > cap) {
+            particles.subList(0, particles.size - cap).clear()
         }
 
         // Update blooms

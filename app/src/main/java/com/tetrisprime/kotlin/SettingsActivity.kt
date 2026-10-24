@@ -131,6 +131,30 @@ class SettingsActivity : AppCompatActivity() {
             s.addView(backupBtn)
         })
 
+        // Phase 11: Section — Performance
+        container.addView(section("الأداء").also { s ->
+            val perfBtn = Button(this).apply {
+                val perfLabel = when (settings.performance) {
+                    "ultra" -> "🚀 ألترا (72fps)"
+                    "high" -> "✨ عالي (60fps)"
+                    "balanced" -> "⚖️ متوازن (46fps)"
+                    "eco" -> "🔋 موفّر (32fps)"
+                    else -> "🌐 تلقائي"
+                }
+                text = "⚡ مستوى الأداء: $perfLabel"
+                setBackgroundColor(0xFF312E81.toInt())
+                setTextColor(0xFFF3F1FF.toInt())
+                setOnClickListener {
+                    startActivity(android.content.Intent(this@SettingsActivity, PerformanceProfileActivity::class.java))
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 8 }
+            }
+            s.addView(perfBtn)
+        })
+
         // Done button
         val doneBtn = Button(this).apply {
             text = "تم"

@@ -143,6 +143,8 @@ class GameActivity : AppCompatActivity() {
 
         // Phase 7: initialize input subsystems
         settings = SettingsManager.load(this)
+        // Phase 11: apply performance profile (affects render FPS + particle cap)
+        PerformanceManager.init(this)
         // Haptics are always enabled at the controller level; the buzz() method
         // is fully exception-safe and silently no-ops if the device has no vibrator
         // or the VIBRATE permission is missing.
@@ -275,6 +277,8 @@ class GameActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Phase 11: detach GameView's performance listener to avoid leak
+        gameView.releasePerformance()
         audioEngine?.release()
     }
 

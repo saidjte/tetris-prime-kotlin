@@ -14,7 +14,24 @@ import java.io.File
  */
 class SfxManager(private val context: Context) {
 
-    private val soundPool: SoundPool
+    // Phase 11: lazy SoundPool — created on first use instead of class construction,
+    // so simply building an AudioEngine doesn't touch the audio service.
+    private val soundPool: SoundPool by lazy {
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_GAME)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
+        SoundPool.Builder()
+            .setMaxStreams(8)
+            .setAudioAttributes(audioAttributes)
+            .build()
+            .also { sp ->
+                sp.setOnLoadCompleteListener { _, _, _ ->
+                    // Track loaded samples
+                }
+            }
+    }
     private val soundMap = mutableMapOf<String, Int>()
     private var loaded = false
     private var volume = 0.8f
@@ -29,22 +46,6 @@ class SfxManager(private val context: Context) {
         "sfx_levelup", "sfx_danger", "sfx_save",
         "sfx_record", "sfx_tick", "sfx_go", "sfx_over"
     )
-
-    init {
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_GAME)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-
-        soundPool = SoundPool.Builder()
-            .setMaxStreams(8)
-            .setAudioAttributes(audioAttributes)
-            .build()
-
-        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
-            // Track loaded samples
-        }
-    }
 
     /** Load all SFX from assets/sfx/ directory. */
     fun loadFromAssets(assetsDir: File) {

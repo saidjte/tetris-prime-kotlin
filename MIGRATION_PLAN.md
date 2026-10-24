@@ -341,17 +341,17 @@ data class Settings(
 ## المرحلة 11: الأداء والتحسين (أسبوع 14)
 
 ### 11.1 ملفات الأداء (4 مستويات)
-- [ ] ultra: 72 FPS, 2.0× render, 44 particles
-- [ ] high: 60 FPS, 1.5× render, 40 particles
-- [ ] balanced: 46 FPS, 1.25× render, 28 particles
-- [ ] eco: 32 FPS, 1.0× render, 18 particles
-- [ ] كشف تلقائي بناءً على frame times
+- [x] ultra: 72 FPS, 2.0× render, 44 particles
+- [x] high: 60 FPS, 1.5× render, 40 particles
+- [x] balanced: 46 FPS, 1.25× render, 28 particles
+- [x] eco: 32 FPS, 1.0× render, 18 particles
+- [x] كشف تلقائي بناءً على frame times
 
 ### 11.2 تحسينات
-- [ ] SurfaceView للرسم (بدلاً من Compose Canvas للجسيمات الكثيفة)
-- [ ] Object pooling للجسيمات
-- [ ] Lazy loading للأصول الصوتية
-- [ ] Compose stability للقوائم
+- [x] SurfaceView للرسم (بدلاً من Compose Canvas للجسيمات الكثيفة)
+- [x] Object pooling للجسيمات
+- [x] Lazy loading للأصول الصوتية
+- [x] Compose stability للقوائم
 
 ---
 

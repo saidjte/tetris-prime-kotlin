@@ -25,7 +25,8 @@ data class Settings(
     val gamepad: Boolean = true,
     val pieceSymbols: Boolean = false,
     val allowRotation: Boolean = false, // allow rotating in impossible directions
-    val hideCtlButtons: Boolean = false
+    val hideCtlButtons: Boolean = false,
+    val performance: String = "auto"    // Phase 11: auto | ultra | high | balanced | eco
 )
 
 /**
@@ -76,7 +77,8 @@ object SettingsManager {
         sb.append("\"gamepad\":").append(s.gamepad).append(',')
         sb.append("\"pieceSymbols\":").append(s.pieceSymbols).append(',')
         sb.append("\"allowRotation\":").append(s.allowRotation).append(',')
-        sb.append("\"hideCtlButtons\":").append(s.hideCtlButtons)
+        sb.append("\"hideCtlButtons\":").append(s.hideCtlButtons).append(',')
+        sb.append("\"performance\":\"").append(esc(s.performance)).append('"')
         sb.append('}')
         return sb.toString()
     }
@@ -140,7 +142,8 @@ object SettingsManager {
             gamepad = map["gamepad"]?.toBooleanStrictOrNull() ?: true,
             pieceSymbols = map["pieceSymbols"]?.toBooleanStrictOrNull() ?: false,
             allowRotation = map["allowRotation"]?.toBooleanStrictOrNull() ?: false,
-            hideCtlButtons = map["hideCtlButtons"]?.toBooleanStrictOrNull() ?: false
+            hideCtlButtons = map["hideCtlButtons"]?.toBooleanStrictOrNull() ?: false,
+            performance = map["performance"] ?: "auto"
         )
     }
 
