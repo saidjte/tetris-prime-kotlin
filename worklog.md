@@ -442,3 +442,67 @@ Stage Summary:
 - release v1.12.0 (release_id=422828748) مع APK + source code
 - نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.11.1 بدون إزالة
 - التالي: Phase 2 — ربط 22 SFX + 276 voice events بأحداث المحرك
+
+---
+Task ID: phase-2-audio
+Agent: main
+Task: Phase 2 — Audio system wiring (22 SFX + 276 voice events)
+
+Work Log:
+- استنسخت الـ sandbox بأحدث حالة من origin/main (كان قديماً قبل phase 0)
+- فحصت أسماء ملفات الـ voice الحقيقية في assets/www/voices/: 276 ملف بصيغة <event>-<variant>.mp3
+- فحصت أسماء ملفات الـ SFX الحقيقية في assets/www/sfx/: 22 ملف بدون prefix (move.mp3, rotate.mp3, etc.)
+- اكتشفت أن VoiceManager القديم كان يستخدم File API (لا يعمل مع Android assets) وأن SfxManager كان يستخدم prefix sfx_ غير موجود
+- === SfxManager.kt (إعادة كتابة) ===
+  * loadFromAssets() يستخدم context.assets.openFd("www/sfx/$name.mp3")
+  * 22 اسم ملف حقيقي: move/rotate/soft/hard/lock/hold/click/save/clear1-3/tetris/tspin-3/levelup/danger/record/tick/go/over
+  * SoundPool بـ 8 max streams + USAGE_GAME + SONIFICATION
+- === VoiceManager.kt (إعادة كتابة) ===
+  * loadFromAssets() يستخدم context.assets.list("www/voices") ويكتشف variants تلقائياً
+  * eventVariants: Map<String, List<String>> يحوي 54 event
+  * اختيار variant عشوائي لكل تشغيل
+  * 9 voice packs (raffina + 8 effect variants: giant/chipmunk/cyber/stadium/echo/radio/twin/alien)
+  * التأثيرات تُطبّق على raffina الأصلية: pitch 0.5-1.6, reverb, echo, bandpass, delay, softVolume
+  * فلتر التردد (low/normal/high) يطابق settings.voiceFreq
+  * priority-based cooldowns: HIGH=1.2s, NORMAL=2.2s, LOW=6s
+- === AudioEngine.kt (إعادة كتابة) ===
+  * 54 voice event method
+  * Milestone tracking:
+    - Score: 10k/25k/50k/100k/250k/500k/1m (fire once per threshold)
+    - Lines: 25/50/100/150/200
+    - Sprint progress: 10/20/30/40 lines
+    - Ultra time: 60s + 30s remaining warnings
+  * State-based voice cues:
+    - Warm: 25s بعد بدء اللعبة
+    - Idle: 30s بدون إدخال
+    - Danger: عند دخول منطقة الخطر
+    - ZenCalm: 70s في وضع zen
+  * onInput() يُعید تعيين idle timer
+  * onGameStart() يُعید تعيين كل trackers
+- === GameActivity.kt ===
+  * dispatchAction: كل InputSystem.Action يُطلق SFX مناسب + onInput()
+    - MOVE_LEFT/RIGHT → playMove()
+    - ROTATE_CW/CCW → playRotate()
+    - SOFT_DROP_START → playSoftDrop()
+    - HARD_DROP → playHardDrop()
+    - HOLD → playHold() + voiceSaved()
+    - PAUSE → onGamePause() / onGameResume()
+    - RESTART → onGameStart()
+  * setupControls: معالجات الأزرار تُطلق SFX أيضاً (للإدخال باللمس)
+  * Game loop diff-tracking (8 متغيرات prev):
+    - prevLines → playClear + voiceClear (+ T-spin/B2B/PC/combo)
+    - prevLevel → playLevelUp + voiceLevelUp
+    - prevScore → onScoreChange (milestones)
+    - eng.mode == SPRINT → onSprintProgress (10/20/30/40)
+    - eng.lines → onTotalLinesChange (25/50/100/150/200)
+    - countdown tick → onCountdownTick + onCountdownEnd عند 0
+    - isGameOver → onGameOver + voiceWin (للـ mission/adventure/daily)
+  * prev* state initialized في onCreate بعد engine?.start()
+  * Engine callbacks موجودة مسبقاً: onWin/onTimeUp/onUltra60/onUltra30/onHurry
+
+Stage Summary:
+- Phase 2 مكتملة: 22 SFX + 276 voice files مربوطة بـ 54+ engine event
+- حجم APK: 13.83MB (نفس v1.12.0 — لا تغيير في الأصول، فقط activation)
+- release v1.13.0 (release_id=422870662) مع APK + source code
+- نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.12.0 بدون إزالة
+- التالي: Phase 3 — محرك الأنماط الدقيق (mode configs + unlock system + Battle AI + Cheese/Zen/Ultra modes)
