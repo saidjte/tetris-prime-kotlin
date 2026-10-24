@@ -7,7 +7,7 @@ import kotlin.math.max
  * Handles win/lose conditions for each game mode.
  */
 class ModeGameEngine(
-    private val mode: GameMode = GameMode.CLASSIC,
+    val mode: GameMode = GameMode.CLASSIC,
     private val seededRandom: SeededRandom? = null,
     private val missionGoal: MissionGoal? = null,
     private val dailyDateStr: String? = null

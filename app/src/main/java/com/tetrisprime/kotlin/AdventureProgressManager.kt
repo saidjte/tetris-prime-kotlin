@@ -75,7 +75,7 @@ object AdventureProgressManager {
     }
 
     private fun loadHighestUnlocked(ctx: Context): Int =
-        prefs(ctx).getInt(KEY_HIGHEST_UNLOCKED_STAGE, 0)  // stage 0 always unlocked
+        prefs(ctx).getInt(KEY_HIGHEST_UNLOCKED, 0)  // stage 0 always unlocked
 
     /** Get all 36 stages with state. */
     fun getAllStages(ctx: Context): List<StageState> {
@@ -136,7 +136,7 @@ object AdventureProgressManager {
         prefs(ctx).edit()
             .putStringSet(KEY_COMPLETED, completed.map { it.toString() }.toSet())
             .putString(KEY_TOKENS, tokensMap.entries.joinToString(";") { "${it.key}:${it.value.joinToString(",")}" })
-            .putInt(KEY_HIGHEST_UNLOCKED_STAGE, newHighest)
+            .putInt(KEY_HIGHEST_UNLOCKED, newHighest)
             .apply()
 
         return getStage(ctx, index)
