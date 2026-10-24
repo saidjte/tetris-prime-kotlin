@@ -109,29 +109,46 @@ class MusicManager(private val context: Context) {
 
     private fun startPlayback() {
         val sampleRate = 44100
-        val bufferSize = AudioTrack.getMinBufferSize(
-            sampleRate,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        )
+        val bufferSize = try {
+            AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+        } catch (e: Exception) {
+            // Audio system unavailable — abort music gracefully
+            isPlaying = false
+            return
+        }
+        if (bufferSize <= 0) {
+            isPlaying = false
+            return
+        }
 
-        audioTrack = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_GAME)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(sampleRate)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build()
-            )
-            .setBufferSizeInBytes(bufferSize)
-            .setTransferMode(AudioTrack.MODE_STREAM)
-            .build()
+        audioTrack = try {
+            AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_GAME)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(bufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
+        } catch (e: Exception) {
+            // AudioTrack construction failed (e.g., audio service unavailable)
+            audioTrack = null
+            isPlaying = false
+            return
+        }
 
         audioTrack?.setVolume(volume)
         isPlaying = true
@@ -145,12 +162,23 @@ class MusicManager(private val context: Context) {
             val buffer = ShortArray(stepSamples)
             var stepIndex = 0
 
-            audioTrack?.play()
+            try {
+                audioTrack?.play()
+            } catch (e: Exception) {
+                // play() can throw IllegalStateException if the track is in a bad state
+                isPlaying = false
+                return@Thread
+            }
 
             while (isPlaying && !Thread.currentThread().isInterrupted) {
                 // Generate one step of audio
                 generateStep(buffer, stepIndex, sampleRate)
-                audioTrack?.write(buffer, 0, buffer.size)
+                try {
+                    audioTrack?.write(buffer, 0, buffer.size)
+                } catch (e: Exception) {
+                    // write failed — stop playback
+                    break
+                }
                 stepIndex++
             }
         }.also { it.start() }

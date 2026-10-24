@@ -161,12 +161,18 @@ class HapticController(private val ctx: Context) {
     fun buzz(h: InputSystem.Haptic) {
         if (!enabled) return
         val v = vibrator ?: return
-        if (!v.hasVibrator()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            v.vibrate(VibrationEffect.createWaveform(h.pattern, -1))
-        } else {
-            @Suppress("DEPRECATION")
-            v.vibrate(h.pattern, -1)
+        try {
+            if (!v.hasVibrator()) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v.vibrate(VibrationEffect.createWaveform(h.pattern, -1))
+            } else {
+                @Suppress("DEPRECATION")
+                v.vibrate(h.pattern, -1)
+            }
+        } catch (e: SecurityException) {
+            // Missing VIBRATE permission on some devices — silently ignore
+        } catch (e: Exception) {
+            // Any other vibration failure — ignore
         }
     }
 

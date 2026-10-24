@@ -84,6 +84,11 @@ class GameActivity : AppCompatActivity() {
             }
         }
 
+        // CRITICAL: start the engine so the first piece spawns, board is initialized,
+        // and the countdown begins. Without this call, the engine sits in its initial
+        // state (empty board, null currentPiece) and the game appears frozen.
+        engine?.start()
+
         // Set audio callbacks
         engine?.onWin = {
             statusText.text = "🏆 فوز!"
@@ -127,13 +132,16 @@ class GameActivity : AppCompatActivity() {
 
         // Phase 7: initialize input subsystems
         settings = SettingsManager.load(this)
-        haptic = HapticController(this).apply { enabled = settings.gestures }  // re-use gestures toggle for haptics master switch
+        // Haptics are always enabled at the controller level; the buzz() method
+        // is fully exception-safe and silently no-ops if the device has no vibrator
+        // or the VIBRATE permission is missing.
+        haptic = HapticController(this)
         keyboardDispatcher = KeyboardGamepadDispatcher(haptic) { action -> dispatchAction(action) }
         if (settings.gestures) {
             gestureDispatcher = GestureDispatcher(haptic) { action -> dispatchAction(action) }
             gameView.setOnTouchListener { _, event ->
                 gestureDispatcher?.onTouchEvent(event) ?: false
-                // Do not consume — let the view still receive invalidates
+                // Return false so the view still receives invalidates
             }
         }
 
