@@ -71,22 +71,8 @@ class VoiceManager(private val context: Context) {
         "modeselect" to 4
     )
 
-    /** Voice packs with their effects. */
-    val voicePacks = mapOf(
-        "raffina" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = false),
-        "giant" to VoicePackConfig(pitch = 0.7f, reverb = false, echo = false),
-        "chipmunk" to VoicePackConfig(pitch = 1.6f, reverb = false, echo = false),
-        "cyber" to VoicePackConfig(pitch = 1.0f, reverb = true, echo = false),
-        "stadium" to VoicePackConfig(pitch = 1.0f, reverb = true, echo = true),
-        "echo" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = true),
-        "radio" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = false, bandpass = true),
-        "twin" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = true, delay = 80),
-        "alien" to VoicePackConfig(pitch = 0.5f, reverb = true, echo = false),
-        "calm" to VoicePackConfig(pitch = 0.9f, reverb = true, echo = false, softVolume = true),
-        "whisper" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = true, softVolume = true),
-        "hero" to VoicePackConfig(pitch = 0.85f, reverb = true, echo = false),
-        "sage" to VoicePackConfig(pitch = 0.8f, reverb = true, echo = false)
-    )
+    /** Voice packs catalog — see companion object. */
+    // Accessible as VoiceManager.voicePacks (companion) or instance.voicePacks (delegated).
 
     // Event cooldown tracking
     private val lastEventTime = mutableMapOf<String, Long>()
@@ -202,6 +188,25 @@ class VoiceManager(private val context: Context) {
         mediaPlayer?.release()
         mediaPlayer = null
         voiceClips.clear()
+    }
+
+    companion object {
+        /** Voice pack catalog (static so StoreActivity can list without instantiating). */
+        val voicePacks: Map<String, VoicePackConfig> = mapOf(
+            "raffina" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = false),
+            "giant" to VoicePackConfig(pitch = 0.7f, reverb = false, echo = false),
+            "chipmunk" to VoicePackConfig(pitch = 1.6f, reverb = false, echo = false),
+            "cyber" to VoicePackConfig(pitch = 1.0f, reverb = true, echo = false),
+            "stadium" to VoicePackConfig(pitch = 1.0f, reverb = true, echo = true),
+            "echo" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = true),
+            "radio" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = false, bandpass = true),
+            "twin" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = true, delay = 80),
+            "alien" to VoicePackConfig(pitch = 0.5f, reverb = true, echo = false),
+            "calm" to VoicePackConfig(pitch = 0.9f, reverb = true, echo = false, softVolume = true),
+            "whisper" to VoicePackConfig(pitch = 1.0f, reverb = false, echo = true, softVolume = true),
+            "hero" to VoicePackConfig(pitch = 0.85f, reverb = true, echo = false),
+            "sage" to VoicePackConfig(pitch = 0.8f, reverb = true, echo = false)
+        )
     }
 }
 

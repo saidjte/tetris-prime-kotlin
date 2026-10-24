@@ -3,6 +3,7 @@ package com.tetrisprime.kotlin
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.GridLayout
@@ -11,7 +12,8 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
 /**
- * Mode selection screen — shows all game modes with lock/unlock status.
+ * Mode selection screen — shows all game modes with lock/unlock status,
+ * plus a navigation rail to other Phase 6 UI screens.
  */
 class ModeSelectActivity : AppCompatActivity() {
 
@@ -55,6 +57,9 @@ class ModeSelectActivity : AppCompatActivity() {
 
         container.addView(grid)
 
+        // Navigation rail (Phase 6 screens)
+        container.addView(buildNavRail())
+
         // Stats display
         val statsText = TextView(this).apply {
             text = "ألعاب: ${stats.games} | خطوط: ${stats.totalLines}"
@@ -67,6 +72,54 @@ class ModeSelectActivity : AppCompatActivity() {
 
         scrollView.addView(container)
         setContentView(scrollView)
+    }
+
+    /**
+     * Build a 3-column grid of buttons that navigate to other Phase 6 screens.
+     */
+    private fun buildNavRail(): View {
+        val grid = GridLayout(this).apply {
+            columnCount = 3
+            rowCount = 2
+            useDefaultMargins = true
+            setPadding(0, 32, 0, 0)
+        }
+        val items = listOf(
+            NavItem("⚙️ الإعدادات") { startActivity(Intent(this, SettingsActivity::class.java)) },
+            NavItem("📊 الإحصائيات") { startActivity(Intent(this, StatsActivity::class.java)) },
+            NavItem("🏆 الإنجازات") { startActivity(Intent(this, AchievementsActivity::class.java)) },
+            NavItem("🛒 المتجر") { startActivity(Intent(this, StoreActivity::class.java)) },
+            NavItem("📚 الشرح") { startActivity(Intent(this, TutorialActivity::class.java)) },
+            NavItem("🥇 الصدارة") { startActivity(Intent(this, LeaderboardActivity::class.java)) }
+        )
+        for (item in items) {
+            grid.addView(navButton(item))
+        }
+        return grid
+    }
+
+    private data class NavItem(val label: String, val action: () -> Unit)
+
+    private fun navButton(item: NavItem): View {
+        val tv = TextView(this).apply {
+            text = item.label
+            textSize = 13f
+            setTextColor(0xFFF3F1FF.toInt())
+            gravity = Gravity.CENTER
+            setPadding(16, 24, 16, 24)
+            val d = android.graphics.drawable.GradientDrawable()
+            d.setColor(0xFF312E81.toInt())
+            d.cornerRadius = 16f
+            background = d
+            setOnClickListener { item.action() }
+        }
+        val lp = GridLayout.LayoutParams().apply {
+            width = 0
+            height = GridLayout.LayoutParams.WRAP_CONTENT
+            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1, 1f)
+        }
+        tv.layoutParams = lp
+        return tv
     }
 
     private fun createModeButton(mode: GameMode): View {

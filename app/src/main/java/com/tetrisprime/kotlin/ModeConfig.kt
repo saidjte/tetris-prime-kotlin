@@ -91,7 +91,18 @@ data class GameResult(
     val timeMs: Long,
     val isWin: Boolean,
     val isNewRecord: Boolean,
-    val overReason: GameOverReason
+    val overReason: GameOverReason,
+    // Optional detailed stats (populated by GameEngine for StatsManager)
+    val piecesPlaced: Int? = null,
+    val singleClears: Int? = null,
+    val doubleClears: Int? = null,
+    val tripleClears: Int? = null,
+    val tetrises: Int? = null,
+    val tspinMini: Int? = null,
+    val tspinFull: Int? = null,
+    val perfectClears: Int? = null,
+    val maxCombo: Int? = null,
+    val maxB2b: Int? = null
 )
 
 /** Game over reasons. */
