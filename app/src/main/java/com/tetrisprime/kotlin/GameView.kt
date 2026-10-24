@@ -5,16 +5,12 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.View
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 /**
  * Custom View that renders the Tetris board with rich visuals:
@@ -727,7 +723,7 @@ class GameView @JvmOverloads constructor(
         } else if (engine.status == GameStatus.PLAYING) {
             engine.update(deltaMs)
         }
-        detectEvents(deltaMs.toFloat())
+        detectEvents(deltaMs)
         invalidate()
     }
 }

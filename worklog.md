@@ -337,3 +337,52 @@ Stage Summary:
 - Particle pooling eliminates GC churn in dense FX scenes
 - Lazy audio init removes audio-service dependency from app start path
 - Same signing key preserved → install v1.11.0 over v1.10.0 without uninstall
+
+---
+Task ID: phase-11-visual
+Agent: main
+Task: Visual Overhaul — أعاد بناء طبقة العرض لتشبه النسخة الأصلية (شعر المستخدم أن النسخة الحالية "بدائية" و"بدون حياة")
+
+Work Log:
+- استنسخت النسختين (Kotlin + original WebView) وفحصت `src/2u67pfqx45e58.js` (898KB Next.js bundle) لفهم الفجوة
+- شخّصت المشكلة: المحرك منطقي صحيح لكن طبقة العرض مُهمَلة — كتل مسطحة، لا أنيميشن، لا Next/Hold، أزرار Android الافتراضية، نظام جسيمات مكتوب لكن لا يُستدعى
+- === GameView.kt — إعادة كتابة كاملة (570 سطر، كان 229) ===
+  * كتل بتدرج رأسي (فاتح علوي → داكن سفلي) + حواف مدوّرة 18% + edge stroke بلون الثيم + لمعة زجاجية علوية
+  * ghost piece: dashed outline + نبض alpha
+  * line-clear flash: overlay أبيض 220ms على الصفوف الممسوحة + استدعاء particleSystem.onClear
+  * lock flash: overlay أبيض 200ms على خلايا القطعة المثبّتة
+  * hard-drop trail: خط عمودي متلاشي 280ms من الصف 0 إلى موقع القفل
+  * لوحة Hold (يسار) + لوحة Next ×3 (يمين) تُرسم داخل GameView مع mini-piece previews (Hold رمادي عند الاستخدام)
+  * countdown overlay: 3/2/1/GO! مع scale+fade+glow shadow (overlay يغطي الشاشة)
+  * game-over overlay: تعتيم + "GAME OVER" + النقاط النهائية (fade-in 600ms)
+  * danger zone: overlay أحمر نابض (alpha متذبذب)
+  * ربط ParticleSystem بأحداث المحرك عبر diff-detection:
+    - onClear(linesCleared, cx, cy) عند مسح الصفوف
+    - onFloatText("TETRIS!"/"T-SPIN ×"/"PERFECT CLEAR!"/"COMBO ×N"/"LEVEL N")
+    - onConfetti() عند perfect clear و level up
+- === GameEngine.kt — إضافة科学的 ===
+  * var lastEventWasHardDrop = false يُضبط في hardDrop() ويُستهلك في GameView
+  * يحل مشكلة الكشف عن الإسقاط الصلب بدقة بدلاً من heuristic عبر score jump
+- === أزرار مُصممة ===
+  * res/drawable/btn_primary.xml (cyan gradient + 10dp corners + pressed glow)
+  * res/drawable/btn_secondary.xml (purple gradient)
+  * res/drawable/btn_danger.xml (red gradient)
+  * res/drawable/btn_ghost.xml (slate gradient)
+  * res/drawable/stats_bar_bg.xml (dark gradient panel)
+- === Layouts ===
+  * activity_main.xml و activity_game.xml: تطبيق الأزرار الجديدة + style="@style/Widget.AppCompat.Button.Borderless" لإزالة الإطار الافتراضي
+  * شريط الإحصائيات: خلفية + أحجام أكبر + نصوص مختصرة ("L1" بدل "Level: 1", "×5" بدل "Combo: ×5")
+- === الأنشطة ===
+  * MainActivity.kt و GameActivity.kt: تحديث نصوص الإحصائيات للتوافق مع التصميم المختصر
+- === البناء/الإصدار ===
+  * versionCode=13 / versionName=1.11.0 (محفوظ من Phase 11 perf السابق)
+  * CI VERSION=1.11.0
+  * commit: 37343e3 "v1.11.0: Visual Overhaul + Phase 11 perf"
+
+Stage Summary:
+- الفجوة البصرية بين Kotlin والأصل تقلّصت جذرياً: الكتل لم تعد مستطيلات مسطحة، بل عنصر مرئي بتدرج ولمعة وحواف
+- اللعبة الآن تعرض Next و Hold بجانب اللوحة (لم يكونا موجودين إطلاقاً)
+- كل حدث مهم له رد بصري: مسح صفوف → وميض + جسيمات + popup نصي، قفل → وميض، إسقاط صلب → أثر، عد تنازلي → overlay كبير
+- نظام الجسيمات (789 سطر كان ميتاً) الآن مُفعّل فعلياً
+- لم يُمسس منطق المحرك/التهديف إطلاقاً — التغييرات بصرية صرفة + علم واحد في المحرك للكشف الدقيق عن hard drop
+- بانتظار CI ثم إنشاء release v1.11.0
