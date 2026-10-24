@@ -640,3 +640,45 @@ Stage Summary:
 - release v1.16.0 (release_id=422977393) مع APK + source code
 - نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.15.0 بدون إزالة
 - التالي: المراحل المتبقية (6-7) — تحسينات الشاشات + الأداء + الإطلاق النهائي v2.0.0
+
+---
+Task ID: phase-6-screen-polish
+Agent: main
+Task: Phase 6 — Screen polish (load 101 missions + 40 stages from tetris-content.json)
+
+Work Log:
+- === Definitions.kt — MissionDefinitions.generateAll(ctx) ===
+  * يقبل Context اختياري
+  * يجرب ContentLoader.getMissions(ctx) أولاً ← 101 مهمة من JSON
+  * كل مهمة تشمل title + desc من خريطة i18n (16 لغة)
+  * يلجأ إلى 100 مهمة مولّدة برمجياً عند فشل JSON
+  * cachedJsonMissions (thread-safe @Volatile)
+- === Definitions.kt — AdventureDefinitions.generateAll(ctx) ===
+  * يجرب ContentLoader.getWorlds(ctx) أولاً ← 7 عوالم × 40 مرحلة
+  * كل مرحلة تشمل title + desc من JSON
+  * tokens auto-assigned لـ 'tokens' kind stages
+  * getWorlds(ctx) helper جديد
+  * World data class (id, name, accent, stageCount)
+  * يلجأ إلى 36 مرحلة مولّدة (6 عوالم × 6)
+  * العوالم الـ 7 تطابق الأصل: الواحة/المدينة العتيقة/الجبل/الصحراء/القصر/السماء/الأرض
+- === Definitions.kt — Stage + MissionGoal ===
+  * أضيف title + desc إلى Stage
+  * MissionGoal لديه الحقول (مأهولة فعلياً الآن)
+- === MissionProgressManager + AdventureProgressManager ===
+  * getAllMissions/getAllStages يمرران ctx
+  * التعليقات محدثة: 100→101 مهمة، 36→40 مرحلة
+- === ModeSelectActivity.kt ===
+  * launchGame() fallback paths تمرر 'this'
+- === MissionsActivity.kt — عرض العنوان ===
+  * titleView جديد يعرض mission.title من JSON
+  * fallback إلى kindLabel + n
+  * لون يطابق الحالة (أخضر/أبيض/رمادي)
+  * maxLines=2 لتناسب العناوين الأطول
+
+Stage Summary:
+- Phase 6 مكتملة: 101 مهمة + 40 مرحلة محمّلة من tetris-content.json
+- شاشة المهمات الآن تعرض "المهمة ١: امسح ٢ خطوط" بدلاً من "خطوط 2"
+- نفس الشيء لشاشة المغامرة
+- release v1.17.0 (release_id=422992016) مع APK + source code
+- نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.16.0 بدون إزالة
+- التالي: Phase 7 — الأداء النهائي + الإطلاق v2.0.0
