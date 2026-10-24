@@ -506,3 +506,51 @@ Stage Summary:
 - release v1.13.0 (release_id=422870662) مع APK + source code
 - نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.12.0 بدون إزالة
 - التالي: Phase 3 — محرك الأنماط الدقيق (mode configs + unlock system + Battle AI + Cheese/Zen/Ultra modes)
+
+---
+Task ID: phase-3-mode-engine
+Agent: main
+Task: Phase 3 — محرك الأنماط الدقيق (mode configs + unlock system + cheese init + daily RNG + adventure tokens)
+
+Work Log:
+- فحصت الوضع الحالي: ModeConfig.kt, ModeGameEngine.kt, GameEngine.kt, DailyChallengeManager.kt, BattleAI.kt
+- تحققت من أن GameMode enum يحوي flags الصحيحة (fixedLevel, levelUp, timed, etc.)
+- تحققت من أن BattleAI لديه 3 صعوبات (easy/normal/hard) بـ stepMs/mistakeChance/garbageMul/tetrisBonus/sendEvery
+- === ModeConfig.kt ===
+  * CHEESE_INITIAL_ROWS: 8 → 10 (مطابقة للأصل)
+  * إضافة UNLOCK_REQUIREMENTS لـ MISSION (15 lines) و ADVENTURE (150 lines)
+  * إضافة getDailyConfig(ctx) يحمّل من ContentLoader
+  * إضافة DAILY_REWARD_DEFAULT=150 + DAILY_LEVEL_DEFAULT=4 + DAILY_GOAL_MIN/MAX_DEFAULT
+- === ModeGameEngine.kt ===
+  * إضافة MissionKind.TOKENS لدعم adventure
+  * إضافة advTokensCollected: MutableSet<String>
+  * إضافة onAdventureTokens callback
+  * إضافة collectAdventureToken(tokenId) لمسح الخلايا المُعلَّمة
+  * إضافة sprintFinishTimeMs لتتبع أسرع وقت
+  * إضافة getSprintFinishTimeMs() accessor
+  * applyModeInit() أصبح no-op (cheese يُدار في GameEngine.start)
+  * تحديث isMissionComplete() + updateMode() لدعم TOKENS
+- === GameEngine.kt ===
+  * cheese init: board.fillCheese(8, rng) → board.fillCheese(ModeConfig.CHEESE_INITIAL_ROWS, rng) = 10 rows
+- === DailyChallengeManager.kt ===
+  * DailyState يضيف reward + level
+  * goalFor() يقبل ctx ويستخدم ContentLoader
+  * load() يجلب الإعدادات من tetris-content.json
+- === Fnv1aHash.dailyGoal() ===
+  * يقبل الآن minGoal + maxGoal (كانت hardcoded 9000/15000)
+  * 25 buckets من (maxGoal-minGoal)/25 لكل واحدة
+- === GameActivity.kt ===
+  * DAILY mode الآن يربط seeded RNG عبر DailyChallengeManager.seededRandomFor(dateStr)
+  * كان يمرر null → تسلسل القطع كان عشوائياً
+  * الآن كل لاعب في نفس اليوم يحصل على نفس التسلسل
+
+أخطاء البناء وإصلاحاتها:
+- محاولة 1: 'when' expression must be exhaustive — MissionProgressManager.kt يحتاج TOKENS branch
+- إصلاح: أضفت MissionKind.TOKENS -> "رموز" في kindLabel + "اجمع ${mission.n} رموز" في describe
+- محاولة 2: نجح البناء في run 40117484211
+
+Stage Summary:
+- Phase 3 مكتملة: 9 modes بـ flags دقيقة + unlock requirements صحيحة + cheese init 10 rows + daily seeded RNG + adventure tokens
+- release v1.14.0 (release_id=422888121) مع APK + source code
+- نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.13.0 بدون إزالة
+- التالي: Phase 4 — واجهة الاستخدام الكاملة (شاشات 10 + overlays + customization)
