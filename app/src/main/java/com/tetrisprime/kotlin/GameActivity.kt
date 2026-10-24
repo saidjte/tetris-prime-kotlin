@@ -494,7 +494,15 @@ class GameActivity : AppCompatActivity() {
                     }
                 }
 
-                handler.postDelayed(this, 16)
+                // Phase 7: Performance — record frame time + apply frame-rate limiting
+                val frameMs = System.currentTimeMillis() - lastUpdateTime + delta
+                PerformanceManager.recordFrameTime(frameMs)
+                // Frame budget per active profile: 1000/targetFps ms
+                // - ultra=14ms (72fps), high=17ms (60fps), balanced=22ms (46fps), eco=31ms (32fps)
+                val targetFrameMs = PerformanceManager.frameTimeMsOf(PerformanceManager.activeProfile)
+                val delay = maxOf(targetFrameMs, 8L)  // never go below 8ms (125fps cap)
+
+                handler.postDelayed(this, delay)
             }
         }
         handler.post(runnable)
