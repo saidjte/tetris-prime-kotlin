@@ -103,6 +103,7 @@ object MissionProgressManager {
         MissionKind.PERFECT_CLEAR -> "مسح كامل"
         MissionKind.SURVIVE       -> "صمود"
         MissionKind.LEVEL         -> "مستوى"
+        MissionKind.TOKENS        -> "رموز"
     }
 
     /** Human-readable mission description. */
@@ -117,6 +118,7 @@ object MissionProgressManager {
             MissionKind.PERFECT_CLEAR -> "حقق ${mission.n} مسح كامل"
             MissionKind.SURVIVE       -> "اصمد ${mission.n} ثانية"
             MissionKind.LEVEL         -> "بلوغ المستوى ${mission.n}"
+            MissionKind.TOKENS        -> "اجمع ${mission.n} رموز"
         }
     }
 }
