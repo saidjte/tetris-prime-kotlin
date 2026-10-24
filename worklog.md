@@ -554,3 +554,46 @@ Stage Summary:
 - release v1.14.0 (release_id=422888121) مع APK + source code
 - نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.13.0 بدون إزالة
 - التالي: Phase 4 — واجهة الاستخدام الكاملة (شاشات 10 + overlays + customization)
+
+---
+Task ID: phase-4-ui-polish
+Agent: main
+Task: Phase 4 — UI polish (mode-aware HUD + battle difficulty + stats header)
+
+Work Log:
+- === GameActivity.kt — HUD ديناميكي حسب النمط ===
+  * modeText يعرض حالة حية في كل إطار من game loop:
+    - Ultra: "⚡ ألترا · MM:SS" (countdown مباشر)
+    - Sprint: "🏃 lines/40"
+    - Cheese: "🧀 N متبقي"
+    - Zen: "🧘 زن · L2"
+    - Daily: "📅 score/goal"
+    - Battle: "🤖 N خط" (تقدم الخصم)
+    - Classic/Mission/Adventure: رمز + اسم
+- === ModeSelectActivity.kt — رأس إحصائيات أغنى ===
+  * شريط أفقي بـ 4 شرائح ملوّنة (games/totalLines/bestClassic/coins)
+  * كل شريحة لها خلفية متدرجة + حد ملوّن
+- === ModeSelectActivity.kt — لافتة Daily معاد تصميمها ===
+  * خضراء عند إكمال اليوم ✅ + عرض المكافأة
+  * برتقالية قبل الإكمال 🔥 + عرض السلسلة
+  * بطاقة مدوّرة بحد ملوّن
+- === ModeSelectActivity.kt — مربع اختيار صعوبة المعركة ===
+  * الضغط على Battle mode يُظهر AlertDialog بـ 3 خيارات:
+    - 🟢 سهل: stepMs=380, mistakeChance=0.30, garbageMul=0.5
+    - 🟡 عادي: stepMs=240, mistakeChance=0.12, garbageMul=1.0
+    - 🔴 صعب: stepMs=140, mistakeChance=0.03, tetrisBonus=1
+  * يطابق battle.difficulty strings في التطبيق الأصلي
+- === إعادة هيكلة الكود ===
+  * startGame() → launchGame() helper لفصل بناء intent عن منطق الاختيار
+  * showBattleDifficultyDialog() منفصل لمربع الحوار
+
+أخطاء البناء وإصلاحاتها:
+- محاولة 1: Unresolved reference: streakLabel — DailyState لا يحوي streakLabel
+- إصلاح: qualify كـ DailyChallengeManager.streakLabel
+- محاولة 2: نجح البناء في run 40126191714
+
+Stage Summary:
+- Phase 4 مكتملة جزئياً: HUD ديناميكي + رأس إحصائيات + مربع صعوبة المعركة
+- release v1.15.0 (release_id=422943307) مع APK + source code
+- نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.14.0 بدون إزالة
+- التالي: Phase 5 — تكامل المحرك + UI (ربط ParticleSystem + FloatingText + announcer + near-record + idle/warm/danger voice)
