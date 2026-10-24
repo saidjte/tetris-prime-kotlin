@@ -435,6 +435,24 @@ class GameActivity : AppCompatActivity() {
                     linesText.text = "${eng.lines}"
                     comboText.text = if (eng.combo > 0) "×${eng.combo}" else ""
 
+                    // Phase 4: dynamic mode-aware status in modeText field
+                    val modeEng = eng as ModeGameEngine
+                    modeText.text = when (eng.mode) {
+                        GameMode.ULTRA -> {
+                            val remMs = modeEng.getUltraRemainingMs()
+                            val totalSec = (remMs / 1000).toInt()
+                            val mm = totalSec / 60
+                            val ss = totalSec % 60
+                            "⚡ ألترا · %d:%02d".format(mm, ss)
+                        }
+                        GameMode.SPRINT -> "🏃 ${eng.lines}/${ModeConfig.SPRINT_GOAL_LINES}"
+                        GameMode.CHEESE -> "🧀 ${eng.board.countCheeseCells()} متبقي"
+                        GameMode.ZEN -> "🧘 زن · L${eng.level}"
+                        GameMode.DAILY -> "📅 ${eng.score}/${modeEng.getDailyGoal()}"
+                        GameMode.BATTLE -> "🤖 ${battleAI?.lines ?: 0} خط"
+                        else -> getModeDisplayName(eng.mode)
+                    }
+
                     if (statusText.text.isEmpty()) {
                         statusText.text = when {
                             eng.isGameOver -> "انتهت اللعبة"

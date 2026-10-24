@@ -64,26 +64,72 @@ class ModeSelectActivity : AppCompatActivity() {
         // Navigation rail (Phase 6 screens)
         container.addView(buildNavRail())
 
-        // Stats display
-        val statsText = TextView(this).apply {
-            text = "ألعاب: ${stats.games} | خطوط: ${stats.totalLines}"
-            textSize = 14f
-            setTextColor(0xFF94A3B8.toInt())
-            setPadding(0, 48, 0, 0)
-            gravity = android.view.Gravity.CENTER
+        // Stats display — Phase 4: richer header with games/lines/coins/best
+        val coins = StoreManager.getCoins(this)
+        val bestClassic = LeaderboardManager.getTop(this, GameMode.CLASSIC).firstOrNull()?.score ?: 0L
+        val statsGrid = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 32, 0, 16)
+            gravity = Gravity.CENTER_VERTICAL
         }
-        container.addView(statsText)
+        val statsItems = listOf(
+            "🎮 ${stats.games}" to 0xFFA78BFA.toInt(),
+            "📏 ${stats.totalLines}" to 0xFF34D399.toInt(),
+            "🏆 ${if (bestClassic > 0) bestClassic else "—"}" to 0xFFFBBF24.toInt(),
+            "🪙 $coins" to 0xFFF97316.toInt()
+        )
+        for ((label, color) in statsItems) {
+            val tv = TextView(this).apply {
+                text = label
+                textSize = 13f
+                setTextColor(color)
+                setPadding(12, 8, 12, 8)
+                gravity = Gravity.CENTER
+                val d = android.graphics.drawable.GradientDrawable()
+                d.setColor(0xFF1E1B4B.toInt())
+                d.cornerRadius = 12f
+                d.setStroke(1, color and 0x44FFFFFF.toInt())
+                background = d
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            statsGrid.addView(tv)
+        }
+        container.addView(statsGrid)
 
-        // Phase 8.1: Daily challenge streak banner
+        // Phase 8.1 + Phase 4: Daily challenge streak banner (richer)
         val daily = DailyChallengeManager.load(this)
-        val dailyText = TextView(this).apply {
-            text = "📅 تحدي اليوم: ${daily.goal} نقطة — ${DailyChallengeManager.streakLabel(daily.streak)}"
-            textSize = 13f
-            setTextColor(if (daily.alreadyWonToday) 0xFF34D399.toInt() else 0xFFFBBF24.toInt())
-            setPadding(0, 12, 0, 0)
-            gravity = android.view.Gravity.CENTER
+        val dailyBanner = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(20, 16, 20, 16)
+            gravity = Gravity.CENTER_VERTICAL
+            val d = android.graphics.drawable.GradientDrawable()
+            val baseColor = if (daily.alreadyWonToday) 0xFF065F46.toInt() else 0xFF7C2D12.toInt()
+            d.setColor(baseColor)
+            d.cornerRadius = 16f
+            d.setStroke(1, if (daily.alreadyWonToday) 0xFF34D399.toInt() else 0xFFFBBF24.toInt())
+            background = d
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.topMargin = 8
+            layoutParams = lp
         }
-        container.addView(dailyText)
+        val dailyEmoji = TextView(this).apply {
+            text = if (daily.alreadyWonToday) "✅" else "🔥"
+            textSize = 24f
+            setPadding(0, 0, 12, 0)
+        }
+        val dailyInfo = TextView(this).apply {
+            text = if (daily.alreadyWonToday) {
+                "أكملت تحدي اليوم! • ${daily.streakLabel(daily.streak)} • +${daily.reward} 🪙"
+            } else {
+                "تحدي اليوم: ${daily.goal} نقطة • ${daily.streakLabel(daily.streak)}"
+            }
+            textSize = 13f
+            setTextColor(0xFFF3F1FF.toInt())
+            maxLines = 2
+        }
+        dailyBanner.addView(dailyEmoji)
+        dailyBanner.addView(dailyInfo)
+        container.addView(dailyBanner)
 
         scrollView.addView(container)
         setContentView(scrollView)
@@ -233,6 +279,34 @@ class ModeSelectActivity : AppCompatActivity() {
     }
 
     private fun startGame(mode: GameMode) {
+        // Phase 4: Battle mode shows difficulty picker before launching
+        if (mode == GameMode.BATTLE) {
+            showBattleDifficultyDialog()
+            return
+        }
+        launchGame(mode, battleDifficulty = BattleDifficulty.NORMAL)
+    }
+
+    /** Phase 4 — Battle difficulty selection dialog (mirrors original battle.difficulty). */
+    private fun showBattleDifficultyDialog() {
+        val options = BattleDifficulty.values()
+        val labels = options.map { diff ->
+            when (diff) {
+                BattleDifficulty.EASY -> "🟢 سهل — الخصم بطيء وضعيف"
+                BattleDifficulty.NORMAL -> "🟡 عادي — توازن بين السرعة والهجوم"
+                BattleDifficulty.HARD -> "🔴 صعب — خصم سريع يرسل tetris bonuses"
+            }
+        }.toTypedArray()
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("⚔️ صعوبة المواجهة")
+            .setItems(labels) { _, which ->
+                launchGame(GameMode.BATTLE, battleDifficulty = options[which])
+            }
+            .setNegativeButton("إلغاء", null)
+            .show()
+    }
+
+    private fun launchGame(mode: GameMode, battleDifficulty: BattleDifficulty = BattleDifficulty.NORMAL) {
         val intent = Intent(this, GameActivity::class.java)
         intent.putExtra("mode", mode.name)
         // Add mission/adventure/daily params as needed
@@ -279,7 +353,7 @@ class ModeSelectActivity : AppCompatActivity() {
                 intent.putExtra("daily_date", today)
             }
             GameMode.BATTLE -> {
-                intent.putExtra("battle_difficulty", BattleDifficulty.NORMAL.name)
+                intent.putExtra("battle_difficulty", battleDifficulty.name)
             }
             else -> {}
         }
