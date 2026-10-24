@@ -17,14 +17,18 @@ object ModeConfig {
 
     /** Unlock requirements per mode.
      *  null = unlocked by default.
-     *  Pair(metric, threshold) = requires metric >= threshold. */
+     *  Pair(metric, threshold) = requires metric >= threshold.
+     *  Mirrors original app's mode.XLock strings:
+     *    sprint = 5 games, zen = 10 games, ultra = 250 lines, cheese = 500 lines,
+     *    mission = 15 lines, adventure = 150 lines. */
     val UNLOCK_REQUIREMENTS: Map<GameMode, Pair<String, Int>?> = mapOf(
         GameMode.CLASSIC to null,
         GameMode.SPRINT to ("games" to 5),
         GameMode.ZEN to ("games" to 10),
         GameMode.ULTRA to ("totalLines" to 250),
         GameMode.CHEESE to ("totalLines" to 500),
-        GameMode.MISSION to null,
+        GameMode.MISSION to ("totalLines" to 15),
+        GameMode.ADVENTURE to ("totalLines" to 150),
         GameMode.DAILY to null,
         GameMode.BATTLE to null,
     )
@@ -63,12 +67,28 @@ object ModeConfig {
     const val ULTRA_30S_ANNOUNCE = 30_000L
     const val ULTRA_HURRY_ANNOUNCE = 10_000L
 
-    /** Cheese initial rows. */
-    const val CHEESE_INITIAL_ROWS = 8
+    /** Cheese initial rows — original game starts with 10 garbage rows. */
+    const val CHEESE_INITIAL_ROWS = 10
 
-    /** Daily goal range. */
-    const val DAILY_GOAL_MIN = 9000
-    const val DAILY_GOAL_MAX = 15250
+    /** Daily goal range — defaults match tetris-content.json (9000-15000).
+     *  At runtime, ContentLoader.getDailyConfig() may override these. */
+    const val DAILY_GOAL_MIN_DEFAULT = 9000
+    const val DAILY_GOAL_MAX_DEFAULT = 15000
+    const val DAILY_LEVEL_DEFAULT = 4
+    const val DAILY_REWARD_DEFAULT = 150
+
+    /** Get the daily config from ContentLoader (loaded from tetris-content.json).
+     *  Falls back to constants if content not yet loaded. */
+    fun getDailyConfig(ctx: android.content.Context?): ContentLoader.DailyConfig {
+        return if (ctx != null) {
+            try { ContentLoader.getDailyConfig(ctx) }
+            catch (e: Exception) {
+                ContentLoader.DailyConfig(DAILY_REWARD_DEFAULT, DAILY_GOAL_MIN_DEFAULT, DAILY_GOAL_MAX_DEFAULT, DAILY_LEVEL_DEFAULT)
+            }
+        } else {
+            ContentLoader.DailyConfig(DAILY_REWARD_DEFAULT, DAILY_GOAL_MIN_DEFAULT, DAILY_GOAL_MAX_DEFAULT, DAILY_LEVEL_DEFAULT)
+        }
+    }
 }
 
 /** Player statistics used for mode unlocking. */

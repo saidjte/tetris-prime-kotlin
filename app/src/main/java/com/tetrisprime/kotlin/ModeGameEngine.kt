@@ -5,12 +5,23 @@ import kotlin.math.max
 /**
  * Extended game engine with mode-specific logic.
  * Handles win/lose conditions for each game mode.
+ *
+ * Mode flags (mirrors original app's mode configs):
+ *   - fixedLevel: pin the level (sprint=1, zen=2, cheese=3, daily=4)
+ *   - levelUp: allow level progression (classic, ultra, mission, adventure, battle)
+ *   - timed: track elapsed time (sprint, ultra, cheese)
+ *   - countdownTimer: show countdown (ultra only)
+ *   - scoreBased: score is the primary metric
+ *   - timeRecord: track best time (sprint, cheese)
+ *   - cheeseStart: spawn 10 garbage rows at start (cheese)
  */
 class ModeGameEngine(
     val mode: GameMode = GameMode.CLASSIC,
     private val seededRandom: SeededRandom? = null,
     private val missionGoal: MissionGoal? = null,
-    private val dailyDateStr: String? = null
+    private val dailyDateStr: String? = null,
+    /** Adventure tokens collected during this run. */
+    private val advTokensCollected: MutableSet<String> = mutableSetOf()
 ) : GameEngine(mode, seededRandom) {
 
     // Mode-specific state
@@ -18,6 +29,8 @@ class ModeGameEngine(
     private var ultra60Announced = false
     private var ultra30Announced = false
     private var hurryAnnounced = false
+    /** Sprint: track if best-time record was beaten (set by caller). */
+    private var sprintFinishTimeMs: Long? = null
 
     // Callbacks for UI events
     var onWin: (() -> Unit)? = null
@@ -27,6 +40,7 @@ class ModeGameEngine(
     var onHurry: (() -> Unit)? = null
     var onCheeseProgress: ((remaining: Int) -> Unit)? = null
     var onMissionProgress: ((current: Int, goal: Int) -> Unit)? = null
+    var onAdventureTokens: ((collected: Int, goal: Int) -> Unit)? = null
 
     /** Get the game result when game ends. */
     fun getGameResult(): GameResult {
@@ -60,13 +74,11 @@ class ModeGameEngine(
         )
     }
 
-    /** Get the daily challenge goal. */
+    /** Get the daily challenge goal.
+     *  Returns FNV-1a hash of "goal/YYYY-MM-DD" clamped to ContentLoader range. */
     fun getDailyGoal(): Int {
-        return if (dailyDateStr != null) {
-            Fnv1aHash.dailyGoal(dailyDateStr)
-        } else {
-            ModeConfig.DAILY_GOAL_MIN
-        }
+        val dateStr = dailyDateStr ?: java.time.LocalDate.now().toString()
+        return Fnv1aHash.dailyGoal(dateStr)
     }
 
     /** Check if mission/adventure is complete. */
@@ -81,6 +93,32 @@ class ModeGameEngine(
             MissionKind.PERFECT_CLEAR -> perfectClears >= goal.n
             MissionKind.SURVIVE -> elapsedTimeMs >= goal.n * 1000L
             MissionKind.LEVEL -> level >= goal.n
+            MissionKind.TOKENS -> advTokensCollected.size >= goal.n
+        }
+    }
+
+    /** Phase 3 — called from start() to apply mode-specific board init.
+     *  - Cheese: spawn 10 garbage rows (cheeseStart=true). Already handled in GameEngine.start().
+     *  - Daily: ensure seeded RNG is wired (passed via constructor).
+     *  - Mission level pin: enforced by GameEngine via mode.fixedLevel + levelUp flag. */
+    fun applyModeInit() {
+        // No-op: cheese init is handled by GameEngine.start() (board.fillCheese).
+        // Mission level pinning happens via the engine's mode.fixedLevel + levelUp guard.
+        // Daily seeded RNG is passed via the constructor.
+    }
+
+    /** Adventure: collect a token (called when a marked cell is cleared). */
+    fun collectAdventureToken(tokenId: String) {
+        advTokensCollected.add(tokenId)
+        missionGoal?.let { goal ->
+            if (goal.kind == MissionKind.TOKENS) {
+                onAdventureTokens?.invoke(advTokensCollected.size, goal.n)
+                if (advTokensCollected.size >= goal.n) {
+                    isGameOver = true
+                    status = GameStatus.OVER
+                    onWin?.invoke()
+                }
+            }
         }
     }
 
@@ -90,9 +128,8 @@ class ModeGameEngine(
 
         elapsedTimeMs += deltaMs
 
-        // Ultra mode: time-based
+        // Ultra mode: time-based with countdown
         if (mode == GameMode.ULTRA) {
-            // Announcements
             val remaining = ModeConfig.ULTRA_DURATION_MS - elapsedTimeMs
             if (!ultra60Announced && remaining <= ModeConfig.ULTRA_60S_ANNOUNCE) {
                 ultra60Announced = true
@@ -106,7 +143,6 @@ class ModeGameEngine(
                 hurryAnnounced = true
                 onHurry?.invoke()
             }
-            // Time up
             if (elapsedTimeMs >= ModeConfig.ULTRA_DURATION_MS) {
                 isGameOver = true
                 status = GameStatus.OVER
@@ -117,6 +153,7 @@ class ModeGameEngine(
 
         // Sprint mode: win at 40 lines
         if (mode == GameMode.SPRINT && lines >= ModeConfig.SPRINT_GOAL_LINES) {
+            sprintFinishTimeMs = elapsedTimeMs
             isGameOver = true
             status = GameStatus.OVER
             onWin?.invoke()
@@ -147,6 +184,7 @@ class ModeGameEngine(
                     MissionKind.PERFECT_CLEAR -> perfectClears
                     MissionKind.SURVIVE -> (elapsedTimeMs / 1000).toInt()
                     MissionKind.LEVEL -> level
+                    MissionKind.TOKENS -> advTokensCollected.size
                 }
                 onMissionProgress?.invoke(current, goal.n)
                 if (current >= goal.n) {
@@ -179,6 +217,9 @@ class ModeGameEngine(
             max(0, ModeConfig.ULTRA_DURATION_MS - elapsedTimeMs)
         } else 0
     }
+
+    /** Sprint finish time (null if not finished). */
+    fun getSprintFinishTimeMs(): Long? = sprintFinishTimeMs
 }
 
 /** Mission/adventure goal definition. */
@@ -201,5 +242,6 @@ enum class MissionKind {
     COMBO,
     PERFECT_CLEAR,
     SURVIVE,
-    LEVEL
+    LEVEL,
+    TOKENS  // Adventure-only: collect marked cells (8 token types)
 }

@@ -147,8 +147,9 @@ open class GameEngine(
 
         // Cheese mode: fill bottom rows
         if (mode == GameMode.CHEESE) {
+            // Phase 3: original game starts cheese with 10 garbage rows (not 8)
             val rng = seededRandom?.let { SeededKotlinRandom(it) } ?: kotlin.random.Random.Default
-            board.fillCheese(8, rng)
+            board.fillCheese(ModeConfig.CHEESE_INITIAL_ROWS, rng)
         }
 
         nextPieces.clear()

@@ -71,10 +71,18 @@ object Fnv1aHash {
      * @param dateStr Date in YYYY-MM-DD format
      * @return Goal score in range 9000..15250
      */
-    fun dailyGoal(dateStr: String): Int {
+    /** Compute the daily goal for a given date.
+     *  @param dateStr YYYY-MM-DD
+     *  @param minGoal minimum goal (default 9000 from tetris-content.json)
+     *  @param maxGoal maximum goal (default 15000 from tetris-content.json)
+     *  Distributes evenly across 25 buckets of (maxGoal-minGoal)/25 each. */
+    fun dailyGoal(dateStr: String, minGoal: Int = 9000, maxGoal: Int = 15000): Int {
         val seed = "goal/$dateStr"
         val h = hash(seed)
-        return 9000 + ((h % 25).toInt()) * 250
+        val range = maxGoal - minGoal
+        val buckets = 25
+        val step = range / buckets
+        return minGoal + ((h % buckets).toInt()) * step
     }
 }
 

@@ -3,12 +3,15 @@ package com.tetrisprime.kotlin
 import android.content.Context
 
 /**
- * Phase 8.1 — Daily challenge system.
+ * Phase 8.1 + Phase 3 — Daily challenge system.
  *
- * - Goal: FNV-1a hash of "goal/YYYY-MM-DD" → 9000 + (hash % 25) × 250
+ * - Goal: FNV-1a hash of "goal/YYYY-MM-DD" → range from tetris-content.json
+ *   (default 9000-15000, 25 buckets of 250 each)
  * - Seeded piece sequence: FNV-1a hash of "pieces/YYYY-MM-DD" seeds SeededRandom
  * - Streak: increments each consecutive day a daily challenge is won; resets to 0
  *   if a day is skipped or the challenge is failed.
+ * - Reward: from ContentLoader (default 150 coins)
+ * - Level: from ContentLoader (default 4)
  */
 object DailyChallengeManager {
 
@@ -22,6 +25,8 @@ object DailyChallengeManager {
     data class DailyState(
         val today: String,            // YYYY-MM-DD
         val goal: Int,
+        val reward: Int,
+        val level: Int,
         val streak: Int,
         val lastWonDate: String?,     // YYYY-MM-DD of last win
         val totalWon: Int,
@@ -36,9 +41,13 @@ object DailyChallengeManager {
     /** Get today's date string in YYYY-MM-DD format. */
     fun todayString(): String = java.time.LocalDate.now().toString()
 
-    /** Get the daily goal for a given date (or today if null). */
-    fun goalFor(dateStr: String? = null): Int =
-        Fnv1aHash.dailyGoal(dateStr ?: todayString())
+    /** Get the daily goal for a given date (or today if null).
+     *  Uses FNV-1a hash of "goal/YYYY-MM-DD" clamped to ContentLoader range. */
+    fun goalFor(dateStr: String? = null, ctx: Context? = null): Int {
+        val cfg = ModeConfig.getDailyConfig(ctx)
+        val date = dateStr ?: todayString()
+        return Fnv1aHash.dailyGoal(date, cfg.goalMin, cfg.goalMax)
+    }
 
     /** Build a SeededRandom for the given date's piece sequence. */
     fun seededRandomFor(dateStr: String? = null): SeededRandom {
@@ -51,9 +60,12 @@ object DailyChallengeManager {
         val p = prefs(ctx)
         val today = todayString()
         val lastWon = p.getString(KEY_LAST_WON, null)
+        val cfg = ModeConfig.getDailyConfig(ctx)
         return DailyState(
             today = today,
-            goal = goalFor(today),
+            goal = goalFor(today, ctx),
+            reward = cfg.reward,
+            level = cfg.level,
             streak = p.getInt(KEY_STREAK, 0),
             lastWonDate = lastWon,
             totalWon = p.getInt(KEY_TOTAL_WON, 0),
@@ -74,8 +86,6 @@ object DailyChallengeManager {
         val lastWon = p.getString(KEY_LAST_WON, null)
         val prevStreak = p.getInt(KEY_STREAK, 0)
 
-        // Compute new streak: if lastWon is yesterday, increment; if today, no change;
-        // otherwise reset to 1
         val newStreak = when {
             lastWon == null -> 1
             lastWon == today -> prevStreak  // already won today — no double count

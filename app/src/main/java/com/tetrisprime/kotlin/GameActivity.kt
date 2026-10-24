@@ -86,7 +86,9 @@ class GameActivity : AppCompatActivity() {
         when (mode) {
             GameMode.DAILY -> {
                 val dateStr = intent.getStringExtra("daily_date") ?: java.time.LocalDate.now().toString()
-                engine = ModeGameEngine(mode = mode, dailyDateStr = dateStr)
+                // Phase 3: wire seeded RNG so daily piece sequence is deterministic per date
+                val seededRng = DailyChallengeManager.seededRandomFor(dateStr)
+                engine = ModeGameEngine(mode = mode, seededRandom = seededRng, dailyDateStr = dateStr)
             }
             GameMode.MISSION -> {
                 val kind = MissionKind.valueOf(intent.getStringExtra("mission_kind") ?: MissionKind.LINES.name)
