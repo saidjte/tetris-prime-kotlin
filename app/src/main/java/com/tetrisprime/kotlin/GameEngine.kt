@@ -248,10 +248,11 @@ open class GameEngine(
         lockPiece()
     }
 
-    /** Hold the current piece (swap with held piece). */
-    fun hold() {
-        if (holdUsed) return
-        val p = currentPiece ?: return
+    /** Hold the current piece (swap with held piece).
+     *  Returns true if the hold succeeded, false if holdUsed or no current piece. */
+    fun hold(): Boolean {
+        if (holdUsed) return false
+        val p = currentPiece ?: return false
         val currentType = p.type
         if (holdPiece == null) {
             holdPiece = currentType
@@ -279,6 +280,7 @@ open class GameEngine(
         lockResets = 0
         isGrounded = false
         lastActionWasRotate = false
+        return true
     }
 
     /** Lock the current piece and process line clears. */

@@ -203,6 +203,11 @@ class GameView @JvmOverloads constructor(
     /** Game-over overlay fade-in. */
     private var gameOverAgeMs: Float = 0f
 
+    /** Phase 8 fix — last frame delta in ms (set by update(), used by onDraw).
+     *  Was hardcoded to 16f which made animations FPS-dependent: too fast on
+     *  120Hz screens, too slow on laggy devices. */
+    private var lastFrameDeltaMs: Float = 16f
+
     /** Phase 5 — announcer text (transient on-screen caption).
      *  Set by the activity when audio/voice events fire, to mirror the
      *  original app's on-screen announcer for accessibility (captions). */
@@ -412,11 +417,11 @@ class GameView @JvmOverloads constructor(
         super.onDraw(canvas)
 
         // 1. Background
-        backgroundRenderer.update(16f)
+        backgroundRenderer.update(lastFrameDeltaMs)
         backgroundRenderer.render(canvas, width.toFloat(), height.toFloat())
 
         // 2. Particles update (advance physics)
-        particleSystem.update(16f)
+        particleSystem.update(lastFrameDeltaMs)
 
         val b = engine.board
         val visH = b.visibleHeight
@@ -459,7 +464,7 @@ class GameView @JvmOverloads constructor(
         // 6. Line-clear flash overlay (animate BEFORE blocks collapse)
         lineClearAnim?.let { anim ->
             val totalDuration = 220f
-            anim.ageMs += 16f
+            anim.ageMs += lastFrameDeltaMs
             val t = (anim.ageMs / totalDuration).coerceIn(0f, 1f)
             val alpha = ((1f - t) * 220).toInt()
             flashPaint.color = Color.argb(alpha, 255, 255, 255)
@@ -479,7 +484,7 @@ class GameView @JvmOverloads constructor(
         // 7. Hard-drop trail (vertical fading line)
         hardDropTrail?.let { trail ->
             val totalDuration = 280f
-            trail.ageMs += 16f
+            trail.ageMs += lastFrameDeltaMs
             val t = (trail.ageMs / totalDuration).coerceIn(0f, 1f)
             val alpha = ((1f - t) * 180).toInt()
             trailPaint.color = Color.argb(alpha, Color.red(trail.color), Color.green(trail.color), Color.blue(trail.color))
@@ -513,7 +518,7 @@ class GameView @JvmOverloads constructor(
         // 10. Lock-flash on just-placed piece
         lockFlash?.let { flash ->
             val totalDuration = 200f
-            flash.ageMs += 16f
+            flash.ageMs += lastFrameDeltaMs
             val t = (flash.ageMs / totalDuration).coerceIn(0f, 1f)
             val alpha = ((1f - t) * 200).toInt()
             flashPaint.color = Color.argb(alpha, 255, 255, 255)
@@ -553,7 +558,7 @@ class GameView @JvmOverloads constructor(
 
         // 15. Game-over overlay (fade-in)
         if (engine.isGameOver) {
-            gameOverAgeMs += 16f
+            gameOverAgeMs += lastFrameDeltaMs
             drawGameOverOverlay(canvas)
         } else {
             gameOverAgeMs = 0f
@@ -565,7 +570,7 @@ class GameView @JvmOverloads constructor(
 
     private fun drawAnnouncer(canvas: Canvas) {
         val text = announcerText ?: return
-        announcerAgeMs += 16f
+        announcerAgeMs += lastFrameDeltaMs
         val totalDuration = 2500f
         if (announcerAgeMs >= totalDuration) {
             announcerText = null
@@ -718,7 +723,7 @@ class GameView @JvmOverloads constructor(
             countdownAgeMs = 0f
             lastCountdownValue = v
         }
-        countdownAgeMs += 16f
+        countdownAgeMs += lastFrameDeltaMs
 
         val text = when (v) {
             3 -> "3"
@@ -773,6 +778,8 @@ class GameView @JvmOverloads constructor(
     }
 
     fun update(deltaMs: Long) {
+        // Phase 8 fix — store real delta for onDraw animations (was hardcoded 16f)
+        lastFrameDeltaMs = deltaMs.toFloat().coerceIn(1f, 100f)  // cap to prevent jumps
         if (engine.status == GameStatus.COUNTDOWN) {
             engine.updateCountdown(deltaMs)
         } else if (engine.status == GameStatus.PLAYING) {

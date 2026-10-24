@@ -212,20 +212,21 @@ class GameActivity : AppCompatActivity() {
     /**
      * Phase 7 — single dispatch entry point.
      * Translates InputSystem.Action into GameEngine calls + SFX/voice triggers.
+     * Phase 8 fix — SFX only plays when action actually succeeded.
      */
     private fun dispatchAction(action: InputSystem.Action) {
         val eng = engine ?: return
         val audio = audioEngine ?: return
         audio.onInput()  // reset idle timer on any input
         when (action) {
-            InputSystem.Action.MOVE_LEFT       -> { eng.move(-1); audio.playMove() }
-            InputSystem.Action.MOVE_RIGHT      -> { eng.move(1); audio.playMove() }
-            InputSystem.Action.ROTATE_CW       -> { eng.rotate(1); audio.playRotate() }
-            InputSystem.Action.ROTATE_CCW      -> { eng.rotate(-1); audio.playRotate() }
+            InputSystem.Action.MOVE_LEFT       -> { if (eng.move(-1)) audio.playMove() }
+            InputSystem.Action.MOVE_RIGHT      -> { if (eng.move(1)) audio.playMove() }
+            InputSystem.Action.ROTATE_CW       -> { if (eng.rotate(1)) audio.playRotate() }
+            InputSystem.Action.ROTATE_CCW      -> { if (eng.rotate(-1)) audio.playRotate() }
             InputSystem.Action.SOFT_DROP_START -> { eng.setSoftDropping(true); audio.playSoftDrop() }
             InputSystem.Action.SOFT_DROP_STOP  -> { eng.setSoftDropping(false) }
             InputSystem.Action.HARD_DROP       -> { eng.hardDrop(); audio.playHardDrop() }
-            InputSystem.Action.HOLD            -> { eng.hold(); audio.playHold(); audio.voiceSaved() }
+            InputSystem.Action.HOLD            -> { if (eng.hold()) { audio.playHold(); audio.voiceSaved() } }
             InputSystem.Action.PAUSE           -> {
                 eng.togglePause()
                 if (eng.isPaused) audio.onGamePause() else audio.onGameResume()
@@ -261,11 +262,24 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun setupControls() {
-        setupRepeatButton(R.id.btnLeft) { engine?.move(-1) ?: false; haptic.light(); audioEngine?.playMove(); audioEngine?.onInput(); true }
-        setupRepeatButton(R.id.btnRight) { engine?.move(1) ?: false; haptic.light(); audioEngine?.playMove(); audioEngine?.onInput(); true }
+        // Phase 8 fix — SFX only on successful move
+        setupRepeatButton(R.id.btnLeft) {
+            val moved = engine?.move(-1) ?: false
+            if (moved) { haptic.light(); audioEngine?.playMove() }
+            audioEngine?.onInput()
+            true
+        }
+        setupRepeatButton(R.id.btnRight) {
+            val moved = engine?.move(1) ?: false
+            if (moved) { haptic.light(); audioEngine?.playMove() }
+            audioEngine?.onInput()
+            true
+        }
 
         findViewById<Button>(R.id.btnRotate).setOnClickListener {
-            engine?.rotate(1); haptic.light(); audioEngine?.playRotate(); audioEngine?.onInput()
+            val rotated = engine?.rotate(1) ?: false
+            if (rotated) { haptic.light(); audioEngine?.playRotate() }
+            audioEngine?.onInput()
         }
 
         val softDropBtn = findViewById<Button>(R.id.btnSoftDrop)
@@ -281,7 +295,9 @@ class GameActivity : AppCompatActivity() {
             engine?.hardDrop(); haptic.medium(); audioEngine?.playHardDrop(); audioEngine?.onInput()
         }
         findViewById<Button>(R.id.btnHold).setOnClickListener {
-            engine?.hold(); haptic.light(); audioEngine?.playHold(); audioEngine?.voiceSaved(); audioEngine?.onInput()
+            val held = engine?.hold() ?: false
+            if (held) { haptic.light(); audioEngine?.playHold(); audioEngine?.voiceSaved() }
+            audioEngine?.onInput()
         }
         findViewById<Button>(R.id.btnPause).setOnClickListener {
             val eng = engine ?: return@setOnClickListener
@@ -346,7 +362,9 @@ class GameActivity : AppCompatActivity() {
         val runnable = object : Runnable {
             override fun run() {
                 val now = System.currentTimeMillis()
-                val delta = now - lastUpdateTime
+                // Phase 8 fix — cap delta to prevent physics jumps when app is backgrounded
+                val rawDelta = now - lastUpdateTime
+                val delta = rawDelta.coerceAtMost(100L)  // cap at 100ms (10fps minimum)
                 lastUpdateTime = now
 
                 // Update battle AI
@@ -475,11 +493,12 @@ class GameActivity : AppCompatActivity() {
                         else -> getModeDisplayName(eng.mode)
                     }
 
-                    if (statusText.text.isEmpty()) {
+                    if (statusText.text.isEmpty() || statusText.text.startsWith("عدد")) {
                         statusText.text = when {
                             eng.isGameOver -> "انتهت اللعبة"
                             eng.isPaused -> "إيقاف مؤقت"
-                            eng.status == GameStatus.COUNTDOWN -> "عدد: ${eng.countdown}"
+                            eng.status == GameStatus.COUNTDOWN && eng.countdown > 0 -> "عدد: ${eng.countdown}"
+                            eng.status == GameStatus.COUNTDOWN && eng.countdown == 0 -> "انطلق!"
                             else -> ""
                         }
                     }
