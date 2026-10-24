@@ -597,3 +597,46 @@ Stage Summary:
 - release v1.15.0 (release_id=422943307) مع APK + source code
 - نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.14.0 بدون إزالة
 - التالي: Phase 5 — تكامل المحرك + UI (ربط ParticleSystem + FloatingText + announcer + near-record + idle/warm/danger voice)
+
+---
+Task ID: phase-5-engine-ui-integration
+Agent: main
+Task: Phase 5 — Engine+UI integration (announcer + near-record + lock SFX + B2B)
+
+Work Log:
+- === GameView.kt — announcer text overlay ===
+  * إضافة showAnnouncer(text) method
+  * إضافة drawAnnouncer() في نهاية onDraw
+  * الموضع: 18% من الأعلى (أسفل شريط الإحصائيات)
+  * خلفية صفراء مدوّرة شبه شفافة + نص amber
+  * يتلاشى خلال 2.5 ثانية (70% كامل، 30% fade out)
+- === GameView.kt — تصحيح B2B popup ===
+  * "B2B ×2" → "BACK-TO-BACK ×1.5" (مطابقة لمضاعف الأصل 1.5×)
+- === GameActivity.kt — announcer مربوط بـ engine callbacks ===
+  * onWin → "🏆 فوز!" + voice + announcer
+  * onTimeUp → "⏰ انتهى الوقت!" + voice + announcer
+  * onUltra60 → "⏱️ دقيقة متبقية" + voice + announcer
+  * onUltra30 → "⏱️ ٣٠ ثانية" + voice + announcer
+  * onHurry → "⚠️ عجّل!" + voice + announcer
+  * onAdventureTokens → "🔮 رمز N/M" + announcer
+- === GameActivity.kt — كشف الرقم القياسي القريب ===
+  * تحميل bestScoreForMode عند بدء اللعبة من LeaderboardManager
+  * nearRecordAnnounced = false per game
+  * في game loop: عند score >= 90% من الأفضل → fire once:
+    - audioEngine.voiceNear()
+    - audioEngine.playRecord()
+    - gameView.showAnnouncer("🏆 قربت من الرقم القياسي!")
+- === GameActivity.kt — SFX القفل ===
+  * prevPiecesPlaced في diff state
+  * عند زيادة piecesPlaced → audioEngine.playLock()
+  * يطابق الأصل: صوت قفل عند كل قطعة
+- === GameActivity.kt — onGameStart على البدء الأولي ===
+  * إضافة audioEngine?.onGameStart(mode) في onCreate
+  * كان مفقوداً (فقط في dispatchAction RESTART + btnRestart)
+  * الآن يُطلق عند بدء اللعبة الأول → موسيقى + voice intro per mode
+
+Stage Summary:
+- Phase 5 مكتملة: announcer + near-record + lock SFX + B2B ×1.5
+- release v1.16.0 (release_id=422977393) مع APK + source code
+- نفس مفتاح التوقيع → التحديث يُثبَّت فوق v1.15.0 بدون إزالة
+- التالي: المراحل المتبقية (6-7) — تحسينات الشاشات + الأداء + الإطلاق النهائي v2.0.0
