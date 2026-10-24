@@ -32,19 +32,47 @@ object GiftCodes {
         val expiresOn: String? = null  // YYYY-MM-DD, null = never expires
     )
 
-    /** Built-in registry of valid gift codes. */
-    private val REGISTRY: List<GiftCode> = listOf(
-        GiftCode("WELCOME200", "ترحيب — 200 عملة", Reward.Coins(200)),
-        GiftCode("TETRIS500", "تيتريس — 500 عملة", Reward.Coins(500)),
-        GiftCode("PRIME1000", "برايم — 1000 عملة", Reward.Coins(1000)),
-        GiftCode("DAILY100", "يومي — 100 عملة", Reward.Coins(100)),
-        GiftCode("STORM1500", "عاصفة — 1500 عملة", Reward.Coins(1500)),
-        GiftCode("PHOENIXFX", "حزمة جسيمات العنقاء", Reward.FxPack("phoenix")),
-        GiftCode("AURORAFREE", "ثيم الشفق مجاناً", Reward.Theme("aurora")),
-        GiftCode("HEROVOICE", "صوت البطل", Reward.VoicePack("hero")),
-        GiftCode("SAGEVOICE", "صوت الحكيم", Reward.VoicePack("sage")),
-        GiftCode("RAINBOWFX", "حزمة قوس قزح", Reward.FxPack("rainbow"))
-    )
+    /** Built-in registry — loaded from assets/www/gift-codes.json (mirrors original app). */
+    private val REGISTRY: List<GiftCode> by lazy { loadBundledCodes() }
+
+    private fun loadBundledCodes(): List<GiftCode> {
+        // We can't access Context from a lazy singleton init, so we use a
+        // thread-local app-context holder set by Application.onCreate.
+        // Fallback: empty list — GiftBridge will provide codes via network.
+        return try {
+            val ctx = AppContextHolder.context
+            if (ctx == null) emptyList() else parseBundled(ctx)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun parseBundled(ctx: Context): List<GiftCode> {
+        val json = ctx.assets.open("www/gift-codes.json").bufferedReader().use { it.readText() }
+        val root = org.json.JSONObject(json)
+        val arr = root.optJSONArray("codes") ?: return emptyList()
+        val out = mutableListOf<GiftCode>()
+        for (i in 0 until arr.length()) {
+            val c = arr.getJSONObject(i)
+            val code = c.getString("code")
+            val coins = c.getInt("coins")
+            val note = c.optString("note", "هدية")
+            out.add(GiftCode(code, note, Reward.Coins(coins)))
+        }
+        return out
+    }
+
+    /** Refresh registry from network (called by GiftBridge.httpGet callback). */
+    fun updateRegistry(codes: List<GiftCode>) {
+        // Network codes supplement bundled ones — caller should call redeem() after refresh
+        synchronized(this) {
+            _networkRegistry = codes
+        }
+    }
+    @Volatile private var _networkRegistry: List<GiftCode> = emptyList()
+
+    /** All known codes (bundled + network-refreshed). */
+    fun allCodes(): List<GiftCode> = REGISTRY + _networkRegistry
 
     /** Result of a redeem attempt. */
     sealed class RedeemResult {
@@ -79,7 +107,7 @@ object GiftCodes {
             return RedeemResult.Failure("رموز غير صالحة")
         }
 
-        val match = REGISTRY.find { it.code == normalized }
+        val match = allCodes().find { it.code == normalized }
             ?: return RedeemResult.Failure("الرمز غير معروف")
 
         // Check expiry

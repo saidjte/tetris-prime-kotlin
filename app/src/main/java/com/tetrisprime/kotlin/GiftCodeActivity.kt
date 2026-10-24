@@ -25,6 +25,21 @@ class GiftCodeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Phase 0: refresh gift codes from network (mirrors AndroidGift.httpGet)
+        GiftBridge.httpGet(this, 1, null, object : GiftBridge.Callback {
+            override fun onResult(requestId: Int, codes: List<GiftBridge.GiftCode>, source: String) {
+                // Update GiftCodes registry with network-refreshed codes
+                val mapped = codes.map { gc ->
+                    GiftCodes.GiftCode(gc.code, gc.note ?: "هدية", GiftCodes.Reward.Coins(gc.coins))
+                }
+                GiftCodes.updateRegistry(mapped)
+                android.util.Log.d("GiftCode", "Loaded ${codes.size} codes from $source")
+            }
+            override fun onError(requestId: Int, message: String) {
+                android.util.Log.w("GiftCode", "Network refresh failed: $message")
+            }
+        })
+
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(40, 80, 40, 40)

@@ -1,0 +1,16 @@
+{
+  "_comment": "ملف أكواد الهدايا الرسمي للعبة Tetris Prime — عدّل هذا الملف في GitHub Gist لإضافة أو إزالة أكواد، واللعبة تجلبها تلقائيًا دون تحديث جديد.",
+  "_format": "كل كود: code (الحروف والأرقام، لا مسافات) + coins (عدد العملات) + note (اختياري: وصف يظهر للاعب). يمكن أيضًا كتابة الملف كنص بسيط: كل سطر «CODE عدد» أو «CODE=عدد».",
+  "version": 4,
+  "updated": "2026-10-01",
+  "codes": [
+    { "code": "WELCOME100", "coins": 100, "note": "هدية ترحيبية لأول تجربة" },
+    { "code": "PRIME300", "coins": 300, "note": "كود إطلاق Tetris Prime" },
+    { "code": "TETRIS50", "coins": 50 },
+    { "code": "FREECOINS150", "coins": 150 },
+    { "code": "GIFT777", "coins": 250, "note": "هدية الجمعة" },
+    { "code": "Admincode007", "coins": 25000, "note": "تجربة خصائص اللعبة" },
+    { "code": "Admincodeme", "coins": 50000, "note": "تجربة خصائص اللعبة" },
+    { "code": "grtgift", "coins": 500, "note": "?!?!!" }
+  ]
+}

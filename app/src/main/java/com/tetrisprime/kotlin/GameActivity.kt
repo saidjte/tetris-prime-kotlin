@@ -49,6 +49,9 @@ class GameActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
 
+        // Phase 0: hide banner during gameplay (immersive)
+        AdMobManager.hideBanner()
+
         gameView = findViewById(R.id.gameView)
         scoreText = findViewById(R.id.scoreText)
         levelText = findViewById(R.id.levelText)
@@ -420,6 +423,18 @@ class GameActivity : AppCompatActivity() {
         if (result.overReason == GameOverReason.TOPOUT) {
             showContinueDialog(eng)
         }
+
+        // Phase 0: show interstitial ad after game over (every 3rd game)
+        try {
+            val gamesPlayed = StatsManager.load(this).games
+            if (gamesPlayed % 3 == 0 && AdMobManager.isInterstitialReady()) {
+                AdMobManager.showInterstitial(this) {
+                    // No-op on close — let user continue browsing
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.d("GameActivity", "Interstitial show failed: ${e.message}")
+        }
     }
 
     /**
@@ -444,11 +459,26 @@ class GameActivity : AppCompatActivity() {
             .setCancelable(false)
             .setPositiveButton("إعلان مجاني") { _, _ ->
                 if (state.adContinuesRemaining > 0) {
-                    // In a real app, show the ad here. For now, grant immediately.
-                    ContinueSystem.recordAdContinue(this)
-                    if (ContinueSystem.applyContinue(eng)) {
-                        continuePromptShown = false
-                        statusText.text = ""
+                    // Phase 0: show real rewarded ad via AdMob
+                    if (AdMobManager.isRewardedReady()) {
+                        AdMobManager.showRewarded(this,
+                            onRewardEarned = {
+                                // User completed viewing — grant the continue
+                                ContinueSystem.recordAdContinue(this)
+                                if (ContinueSystem.applyContinue(eng)) {
+                                    continuePromptShown = false
+                                    statusText.text = ""
+                                }
+                            },
+                            onClosed = {
+                                // If ad didn't complete, do nothing (game stays over)
+                            }
+                        )
+                    } else {
+                        // Ad not ready — reload and notify user
+                        android.widget.Toast.makeText(this,
+                            "جارٍ تحضير الإعلان... حاول مرة أخرى",
+                            android.widget.Toast.LENGTH_SHORT).show()
                     }
                 } else {
                     android.widget.Toast.makeText(this, "لا توجد استمرارات إعلانية متبقية اليوم", android.widget.Toast.LENGTH_SHORT).show()

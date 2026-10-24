@@ -1,0 +1,36 @@
+TetrisPrime — Sound Effects (v4.20.0)
+=======================================
+
+Source: "Tetris 99 — Sound Effects" pack
+Downloaded from: https://gamebanana.com/dl/425499 (GameBanana, provided by the owner)
+Original format: WAV (22/32/44.1 kHz) — 30 files
+Processed with: ffmpeg (peak normalization −3/−6/−9 dB, resample 44.1 kHz, MP3 VBR q=2)
+
+Event mapping (game event → source WAV):
+  clear1   ← erase1.wav      (single line clear)
+  clear2   ← erase2.wav      (double line clear)
+  clear3   ← erase3.wav      (triple line clear)
+  tetris   ← erase4.wav      (tetris / 4-line clear)
+  tspin    ← tspin1.wav      (T-spin single)
+  tspin2   ← tspin2.wav      (T-spin double — since v4.19.0)
+  tspin3   ← tspin3.wav      (T-spin triple — since v4.19.0)
+  levelup  ← gem.wav         (level-up jingle)
+  go       ← go.wav          (countdown "GO!")
+  tick     ← ready.wav (0.62 s cut) (countdown beep)
+  danger   ← garbage.wav     (danger / garbage alarm)
+  save     ← decide.wav      (danger cleared — relief)
+  record   ← bravo.wav       (new record fanfare)
+  over     ← linefall.wav    (game over collapse)
+  click    ← cursor.wav (0.15 s cut) (menu/UI click)
+  move     ← move.wav
+  rotate   ← rotate.wav
+  soft     ← softdrop.wav
+  hard     ← harddrop.wav
+  lock     ← lock.wav
+  hold     ← hold.wav
+
+NOTE: this pack first shipped in v4.19.0; the sandbox environment rolled the
+working tree back and the pipeline was re-run unchanged for v4.20.0.
+
+Game sounds are trademarks of their respective owners; this fan-made pack is
+used for personal, non-commercial entertainment in this hobby project.

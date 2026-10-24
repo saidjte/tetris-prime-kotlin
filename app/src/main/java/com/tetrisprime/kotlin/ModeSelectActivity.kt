@@ -87,6 +87,31 @@ class ModeSelectActivity : AppCompatActivity() {
 
         scrollView.addView(container)
         setContentView(scrollView)
+
+        // Phase 0: show banner ad on main screen
+        AdMobManager.showBanner(this)
+    }
+
+    private var lastBackPress = 0L
+
+    /**
+     * Phase 0: back-press confirmation dialog (mirrors original exit.confirm).
+     * First press shows a Toast, second press within 2s exits via ExitBridge.
+     */
+    override fun onBackPressed() {
+        val now = System.currentTimeMillis()
+        if (now - lastBackPress < 2000) {
+            AdMobManager.hideBanner()
+            ExitBridge.exitApp(this)
+        } else {
+            lastBackPress = now
+            android.widget.Toast.makeText(this, "اضغط مرة أخرى للخروج", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        AdMobManager.hideBanner()
     }
 
     /**

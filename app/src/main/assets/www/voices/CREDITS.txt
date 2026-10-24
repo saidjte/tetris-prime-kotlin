@@ -1,0 +1,74 @@
+Tetris Prime — announcer voice clips
+==========================================
+
+182 clips = 168 REAL "Raffina" recordings + 14 neural fallback (v4.11.0)
+-------------------------------------------------------------------------------
+  PRIMARY (168 clips): REAL fish.audio recordings of "Raffina
+           (Puyo Puyo Tetris)" — an energetic young female commentator
+           voice (model by Curedoremi2009 on fish.audio).
+           Source: the game owner's batch recordings (10 files, one per
+           category, multiple phrases per file).
+           Pipeline: tools/raffina_vosk.py (offline word timestamps)
+             -> raffina_align.py (DP token alignment to expected phrases)
+             -> raffina_cut.py (ffmpeg loudnorm I=-14 LUFS / TP=-1.5,
+                highpass 70Hz, 0.08s fade-out, mono 44.1 kHz, 96 kbps mp3)
+           Events: start, clear1, clear2, clear3, tetris, tspin, pc, b2b,
+           combo2..combo10, levelup, danger, saved, score10k..score1m,
+           lines25..lines200
+           Quality: every cut validated (duration/loudness/size) + a diverse
+           sample verified by speech-to-text ("Back-to-back Tetris!",
+           "Absolutely massive!", "Perfect clear!", "Level five, halfway",
+           "One million points, historic!", ...).
+
+  FALLBACK (14 clips): Microsoft Edge neural TTS (free, no key)
+           Voice:   en-US-AvaNeural (young female), rate +20% / pitch +10Hz
+           Events:  record, near, over, win, timeup, hurry (not present in
+                    the Raffina batch recordings yet) + combo9 (the Raffina
+                    cut turned out silent; regenerated in v4.11.0)
+           Script:  tools/generate-edge-voices.ts
+
+File naming: {event}-{variant}.mp3 — index order matches VOICE_MAP in
+src/lib/tetris/audio.ts 1:1 (order matters!).
+
+v4.20.0 — RAFFINA BATCH 2 (2026-09-26, 94 clips): the previously missing
+categories are now REAL Raffina takes — record (9), over (10), win (8),
+timeup (2), hurry (4), near (+1), plus BRAND-NEW events: ultra (2),
+ultra60, ultra30, sprintIntro (2), sprint10/20/30/40, zen (6), pause (3),
+resume (5), idle (12), speed (9), modeselect (4) and 10 hype takes merged
+into the tetris pool (tetris-20..29) + "Marathon mode" (start-12).
+Same fish.audio Raffina voice; files came via a Google Drive link from the
+game owner (the chat upload gateway kept dropping attachments).
+Pipeline: tools/raffina_vosk26.py (vosk word timestamps)
+  -> tools/raffina_align26.py (DP alignment + boundary interpolation,
+     adapted from the v4.5.0 pipeline; zero failed alignments)
+  -> tools/raffina_remaster26.py (loudness match to the v4.11.0 pack
+     standard: -10.6 LUFS + alimiter 0.841).
+Every event's Edge-TTS fallback clips were REPLACED by real takes
+(record/over/win/timeup/hurry); the neural fallback remains only as the
+runtime speechSynthesis/AndroidTTS path for events with no loaded clip.
+
+v4.11.0 LOUDNESS REMASTER: every clip was re-measured and re-gained to
+≈ -10.6 LUFS integrated (was -14..-18) with a true-peak limiter at -1.5 dBTP.
+Re-apply after any re-cut with:
+  ffmpeg -i f.mp3 -af "volume=<gain>dB,alimiter=limit=0.841:level=false" \
+    -ar 44100 -ac 1 -b:a 96k out.mp3   (gain = -10 - measured input_i)
+
+History: v4.4.0 Kenney Voiceover Pack CC0 -> v4.5.0 first Raffina cut ->
+v4.8.0 full Edge neural regeneration -> v4.9.0 restores the REAL Raffina
+voice for all gameplay commentary -> v4.11.0 loudness remaster + combo9 fix
+-> v4.20.0 second Raffina batch closes every category + new events.
+
+v4.22.0 — ALL SYNTHETIC VOICE AUDIO REMOVED (owner request)
+-------------------------------------------------------------------------------
+  The last 3 Edge-neural-TTS clips were DELETED: near-0 and near-1 (both
+  said "Final round", generated back in v4.8.0) and combo9-0 ("Nine!", the
+  v4.11.0 neural regeneration of the silent Raffina cut).
+  The surviving real near take (ASR-verified: "Finish line in sight.")
+  was renumbered near-2 -> near-0 and VOICE_MAP updated accordingly;
+  the combo9 event was removed from the map entirely (no real "Nine!"
+  take exists — combo 9 stays silent instead of ever sounding synthetic).
+  The runtime TTS fallback (speechSynthesis / Android platform TTS bridge)
+  was REMOVED from the audio engine, and the APK shell no longer
+  initializes any TextToSpeech engine — window.AndroidTTS remains only as
+  the shell-detection marker. 262 clips remain, EVERY one a REAL Raffina
+  recording. Events with no real take: combo9 (silent by design).

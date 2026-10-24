@@ -16,8 +16,8 @@ android {
         applicationId "com.tetrisprime.kotlin"
         minSdk 26
         targetSdk 34
-        versionCode 14
-        versionName "1.11.1"
+        versionCode 15
+        versionName "1.12.0"
     }
 
     signingConfigs {
@@ -36,10 +36,16 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
+            buildConfigField "boolean", "DEBUG", "false"
         }
         debug {
             signingConfig signingConfigs.release
+            buildConfigField "boolean", "DEBUG", "true"
         }
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     compileOptions {
@@ -57,4 +63,9 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    // Phase 0: AdMob (Google Mobile Ads SDK) — banner/interstitial/rewarded
+    implementation 'com.google.android.gms:play-services-ads:23.0.0'
+
+    // Phase 0: HTTP for GiftBridge ( bundled HttpURLConnection sufficient — no OkHttp needed )
 }
