@@ -56,3 +56,36 @@ Stage Summary:
 - 8 customizable buttons + gestures + keyboard + gamepad + 5 haptic patterns all wired through single InputSystem.Action funnel
 - Same signing key preserved → users can install v1.7.0 over v1.6.0 without uninstalling
 - Next: Phase 8 (Special features — daily/missions/adventure)
+
+---
+Task ID: phase-7-final
+Agent: main
+Task: Finalize Phase 7 — push, build, release
+
+Work Log:
+- Initial commit 4e1b8ba pushed (Phase 7 + secure signing)
+- CI build #40049636724 FAILED with 17 compile errors:
+  * KEYCODE_GAMEPAD_DPAD_* constants don't exist (used KEYCODE_DPAD_* which already covered them)
+  * `layout` field name collided with inherited View.getLayout() inside apply{} blocks
+  * buildButtonSelector() return type was LinearLayout but returned GridLayout
+- Fixed in commit 1e57a5d:
+  * Removed non-existent KEYCODE_GAMEPAD_DPAD_LEFT/RIGHT/UP/DOWN references
+  * Renamed `layout` field to `buttonLayout` in InputSettingsActivity
+  * Changed buildButtonSelector() return type to android.widget.GridLayout
+- CI build #40049925686 PASSED (commit 1e57a5d)
+- Downloaded APK (4,785,319 bytes) + source zip (162,460 bytes)
+- Created GitHub Release v1.7.0 (release_id=422445959)
+- Uploaded both APK and source zip as release assets
+- Verified both download URLs return HTTP 200
+- Verified keystore certificate SHA-256 = D4:30:4B:0E:B8:C1:1D:C6:90:74:7C:25:23:41:B2:BF:C4:75:2D:44:3B:1A:33:77:9A:53:54:F8:AE:4B:AB:52
+  (same as v1.6.0 — install over previous without uninstall)
+
+Stage Summary:
+- Phase 7 COMPLETE.
+- Keystore now redundantly stored in 3 layers: GitHub Actions secrets (4 secrets, encrypted), repo copy, local backup (documented)
+- CI uses secret-based signing by default with repo-copy fallback
+- 4 input subsystems (touch/keyboard/gamepad/haptics) all wired through single InputSystem.Action funnel
+- Same signing key preserved → v1.7.0 installs cleanly over v1.6.0 (no data loss)
+- Release: https://github.com/saidjte/tetris-prime-kotlin/releases/tag/v1.7.0
+- APK: https://github.com/saidjte/tetris-prime-kotlin/releases/download/v1.7.0/tetris-prime-kotlin-1.7.0.apk
+- Next: Phase 8 (Special features — daily challenge / 100 missions / 36 adventure stages)
