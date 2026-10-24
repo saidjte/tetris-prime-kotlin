@@ -37,9 +37,9 @@ object MissionProgressManager {
     private fun loadHighestUnlocked(ctx: Context): Int =
         prefs(ctx).getInt(KEY_HIGHEST_UNLOCKED, 0)
 
-    /** Get all 100 missions with their unlock/complete state. */
+    /** Get all 101 missions with their unlock/complete state. */
     fun getAllMissions(ctx: Context): List<MissionState> {
-        val all = MissionDefinitions.generateAll()
+        val all = MissionDefinitions.generateAll(ctx)
         val completed = loadCompleted(ctx)
         val highest = loadHighestUnlocked(ctx)
         return all.mapIndexed { idx, m ->

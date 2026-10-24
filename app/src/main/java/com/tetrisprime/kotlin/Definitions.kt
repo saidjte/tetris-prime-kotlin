@@ -1,15 +1,49 @@
 package com.tetrisprime.kotlin
 
+import android.content.Context
 import kotlin.random.Random
 
 /**
- * Mission definitions — 100 missions with progressive difficulty.
- * Matches the original game's mission system.
+ * Mission definitions — loads the 101 missions from tetris-content.json
+ * (mirrors the original WebView app), with a programmatic fallback of
+ * 100 generated missions when content isn't available.
  */
 object MissionDefinitions {
 
-    /** Generate all 100 missions. */
-    fun generateAll(): List<MissionGoal> {
+    /** Cache of missions loaded from JSON (null = not yet loaded). */
+    @Volatile private var cachedJsonMissions: List<MissionGoal>? = null
+
+    /** Load all missions. If ctx is provided, attempts to load from
+     *  tetris-content.json first; falls back to 100 generated missions. */
+    fun generateAll(ctx: Context? = null): List<MissionGoal> {
+        // Try JSON first
+        if (ctx != null) {
+            cachedJsonMissions?.let { return it }
+            try {
+                val jsonMissions = ContentLoader.getMissions(ctx).map { m ->
+                    MissionGoal(
+                        id = m.id,
+                        kind = MissionKind.valueOf(m.kind.uppercase()),
+                        n = m.n,
+                        level = m.level,
+                        title = m.title["ar"] ?: m.title["en"],
+                        desc = m.desc["ar"] ?: m.desc["en"]
+                    )
+                }
+                if (jsonMissions.isNotEmpty()) {
+                    cachedJsonMissions = jsonMissions
+                    return jsonMissions
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("MissionDefinitions", "JSON load failed, using generated: ${e.message}")
+            }
+        }
+        // Fallback: generate 100 missions
+        return generateFallback()
+    }
+
+    /** Generate 100 missions programmatically (fallback when JSON unavailable). */
+    private fun generateFallback(): List<MissionGoal> {
         val missions = mutableListOf<MissionGoal>()
         var id = 1
 
@@ -103,7 +137,8 @@ object MissionDefinitions {
 }
 
 /**
- * Adventure stage definitions — 36 stages across 6 worlds.
+ * Adventure stage definitions — loads the 40 stages across 7 worlds from
+ * tetris-content.json, with a programmatic fallback of 36 stages (6 worlds × 6).
  */
 object AdventureDefinitions {
 
@@ -127,31 +162,104 @@ object AdventureDefinitions {
         val n: Int,
         val level: Int? = null,
         val garbage: String? = null,
-        val tokens: List<TokenType>? = null
+        val tokens: List<TokenType>? = null,
+        val title: String? = null,
+        val desc: String? = null
     )
 
-    /** Generate all 36 stages (6 worlds × 6 stages). */
-    fun generateAll(): List<Stage> {
+    /** World metadata (7 worlds from tetris-content.json). */
+    data class World(
+        val id: Int,
+        val name: String,
+        val accent: String,
+        val stageCount: Int
+    )
+
+    @Volatile private var cachedJsonStages: List<Stage>? = null
+    @Volatile private var cachedJsonWorlds: List<World>? = null
+
+    /** Load all stages. If ctx is provided, attempts JSON first; falls back to generated. */
+    fun generateAll(ctx: Context? = null): List<Stage> {
+        if (ctx != null) {
+            cachedJsonStages?.let { return it }
+            try {
+                val worlds = ContentLoader.getWorlds(ctx)
+                val stages = mutableListOf<Stage>()
+                var globalId = 1
+                for (world in worlds) {
+                    for (stage in world.stages) {
+                        val tokens = if (stage.kind == "tokens") {
+                            // Pick tokens based on stage id (deterministic)
+                            listOf(TokenType.values()[(stage.id - 1) % TokenType.values().size])
+                        } else null
+                        stages.add(Stage(
+                            id = globalId++,
+                            world = world.id,
+                            kind = MissionKind.valueOf(stage.kind.uppercase()),
+                            n = stage.n,
+                            level = stage.level,
+                            tokens = tokens,
+                            title = stage.title["ar"] ?: stage.title["en"],
+                            desc = stage.desc["ar"] ?: stage.desc["en"]
+                        ))
+                    }
+                }
+                if (stages.isNotEmpty()) {
+                    cachedJsonStages = stages
+                    // Also cache worlds
+                    cachedJsonWorlds = worlds.map { w ->
+                        World(
+                            id = w.id,
+                            name = w.name["ar"] ?: w.name["en"] ?: "World ${w.id}",
+                            accent = w.accent,
+                            stageCount = w.stages.size
+                        )
+                    }
+                    return stages
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("AdventureDefinitions", "JSON load failed, using generated: ${e.message}")
+            }
+        }
+        return generateFallback()
+    }
+
+    /** Get world metadata. Loads from JSON if available, else generates defaults. */
+    fun getWorlds(ctx: Context? = null): List<World> {
+        if (ctx != null) {
+            cachedJsonWorlds?.let { return it }
+            // Trigger load via generateAll
+            generateAll(ctx)
+            cachedJsonWorlds?.let { return it }
+        }
+        // Fallback worlds
+        return listOf(
+            World(1, "الواحة", "#4ADE80", 7),
+            World(2, "المدينة العتيقة", "#FBBF24", 6),
+            World(3, "الجبل", "#22D3EE", 6),
+            World(4, "الصحراء", "#F59E0B", 6),
+            World(5, "القصر", "#F472B6", 6),
+            World(6, "السماء", "#A78BFA", 6),
+            World(7, "الأرض", "#C42D16", 3)
+        )
+    }
+
+    /** Generate 36 stages programmatically (6 worlds × 6). */
+    private fun generateFallback(): List<Stage> {
         val stages = mutableListOf<Stage>()
         var id = 1
         val worlds = 6
 
         for (world in 1..worlds) {
-            // Stage 1: Lines
             stages.add(Stage(id = id++, world = world, kind = MissionKind.LINES, n = 10 + world * 2, level = world))
-            // Stage 2: Tokens
             val tokens = listOf(TokenType.values()[(world - 1) % TokenType.values().size])
             stages.add(Stage(id = id++, world = world, kind = MissionKind.LINES, n = 5, level = world, tokens = tokens))
-            // Stage 3: Score
             stages.add(Stage(id = id++, world = world, kind = MissionKind.SCORE, n = world * 10000, level = world + 1))
-            // Stage 4: Tetrises or T-Spins
             val kind = if (world % 2 == 0) MissionKind.TETRISES else MissionKind.TSPINS
             stages.add(Stage(id = id++, world = world, kind = kind, n = 2 + world, level = world + 1))
-            // Stage 5: Combo or Perfect Clear
             val kind5 = if (world <= 3) MissionKind.COMBO else MissionKind.PERFECT_CLEAR
             val n5 = if (kind5 == MissionKind.COMBO) 3 + world else world - 2
             stages.add(Stage(id = id++, world = world, kind = kind5, n = n5, level = world + 2))
-            // Stage 6: Survive or Level (with garbage)
             val kind6 = if (world % 2 == 0) MissionKind.SURVIVE else MissionKind.LEVEL
             val n6 = if (kind6 == MissionKind.SURVIVE) 30 + world * 10 else world + 3
             stages.add(Stage(id = id++, world = world, kind = kind6, n = n6, level = world + 2, garbage = "light"))
@@ -160,3 +268,4 @@ object AdventureDefinitions {
         return stages
     }
 }
+

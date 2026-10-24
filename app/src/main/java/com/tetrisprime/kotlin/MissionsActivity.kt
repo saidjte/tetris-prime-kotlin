@@ -125,6 +125,22 @@ class MissionsActivity : AppCompatActivity() {
         }
         cell.addView(icon)
 
+        // Title (from tetris-content.json if available, else kindLabel)
+        val titleText = state.mission.title
+            ?: "${MissionProgressManager.kindLabel(state.mission.kind)} ${state.mission.n}"
+        val titleView = TextView(this).apply {
+            text = titleText
+            textSize = 10f
+            setTextColor(when {
+                state.isCompleted -> 0xFF34D399.toInt()
+                state.isUnlocked -> 0xFFF3F1FF.toInt()
+                else -> 0xFF475569.toInt()
+            })
+            setPadding(0, 4, 0, 0)
+            maxLines = 2
+        }
+        cell.addView(titleView)
+
         // Goal (small)
         val goal = TextView(this).apply {
             text = "${state.mission.n}"

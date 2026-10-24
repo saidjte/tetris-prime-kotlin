@@ -320,8 +320,8 @@ class ModeSelectActivity : AppCompatActivity() {
                     intent.putExtra("mission_n", next.mission.n)
                     intent.putExtra("mission_level", next.mission.level ?: 1)
                 } else {
-                    // All 100 missions complete — fall back to first
-                    val missions = MissionDefinitions.generateAll()
+                    // All 101 missions complete — fall back to first
+                    val missions = MissionDefinitions.generateAll(this)
                     intent.putExtra("mission_index", 0)
                     intent.putExtra("mission_kind", missions[0].kind.name)
                     intent.putExtra("mission_n", missions[0].n)
@@ -339,8 +339,8 @@ class ModeSelectActivity : AppCompatActivity() {
                     intent.putExtra("mission_n", next.stage.n)
                     intent.putExtra("mission_level", next.stage.level ?: 1)
                 } else {
-                    // All 36 stages complete — fall back to first
-                    val all = AdventureDefinitions.generateAll()
+                    // All 40 stages complete — fall back to first
+                    val all = AdventureDefinitions.generateAll(this)
                     intent.putExtra("adventure_index", 0)
                     intent.putExtra("mission_index", 0)
                     intent.putExtra("mission_kind", all[0].kind.name)

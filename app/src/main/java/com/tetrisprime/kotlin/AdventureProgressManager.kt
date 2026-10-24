@@ -77,9 +77,9 @@ object AdventureProgressManager {
     private fun loadHighestUnlocked(ctx: Context): Int =
         prefs(ctx).getInt(KEY_HIGHEST_UNLOCKED, 0)  // stage 0 always unlocked
 
-    /** Get all 36 stages with state. */
+    /** Get all 40 stages with state. */
     fun getAllStages(ctx: Context): List<StageState> {
-        val all = AdventureDefinitions.generateAll()
+        val all = AdventureDefinitions.generateAll(ctx)
         val completed = loadCompleted(ctx)
         val tokens = loadTokens(ctx)
         val highest = loadHighestUnlocked(ctx)
