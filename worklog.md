@@ -178,3 +178,44 @@ Stage Summary:
 - Gift codes: 10 built-in codes, local validation, one-per-device enforcement
 - Game-over flow now records stats/achievements/leaderboard/coins automatically and offers continue
 - Same signing key preserved → install v1.8.0 over v1.7.1 without uninstall
+
+---
+Task ID: phase-9
+Agent: main
+Task: إبدأ المرحلة 9 — Translation (16 languages + RTL support)
+
+Work Log:
+- Re-cloned repo after sandbox clear (verified at v1.8.0, commit ea263d9)
+- Read MIGRATION_PLAN.md Phase 9 spec (16 languages: ar/en/fr/es/ko/hi/ru/zh/tr/fa/es-MX/it/de/nl/de-CH/ur; RTL for ar/fa/ur)
+- Created TranslationManager.kt — programmatic i18n system:
+  * 16 supported languages with native names + flag emojis
+  * RTL detection for ar/fa/ur
+  * "auto" mode resolves system locale with English fallback
+  * 80+ translation keys covering all UI strings (modes, stats, settings, buttons, store, achievements, leaderboard, tutorial, missions, adventure, daily, gift codes, input)
+  * Full translation tables for ar/en/fr (other 13 fall back to English)
+  * tFor(lang) returns a translator function; t is the current-language translator
+  * init(ctx) reads SettingsManager.lang; setLanguage(lang) updates currentLang
+- Created LanguageSettingsActivity.kt — language picker:
+  * Shows "Auto" option + all 16 languages with flag emoji + native name + RTL badge
+  * Current language highlighted with ✓ and purple border
+  * Tap to select → persists to SettingsManager.lang + updates TranslationManager
+- Modified SettingsActivity.kt:
+  * onCreate calls TranslationManager.init() + applyLayoutDirection()
+  * Header now uses TranslationManager.t(SETTINGS_TITLE)
+  * Language section replaced dropdown with button that opens LanguageSettingsActivity
+  * Button shows current language flag + native name + "(تلقائي)" if auto
+  * Added applyLayoutDirection() helper (sets window.decorView.layoutDirection RTL/LTR)
+- Modified ModeSelectActivity.kt:
+  * onCreate calls TranslationManager.init() + applyLayoutDirection()
+  * Title now uses TranslationManager.t(MODE_SELECT_TITLE)
+  * Added applyLayoutDirection() helper
+- Modified AndroidManifest.xml — registered .LanguageSettingsActivity
+- Bumped version: versionCode 10→11, versionName 1.8.0→1.9.0
+- Updated CI workflow VERSION 1.8.0→1.9.0
+
+Stage Summary:
+- Phase 9 COMPLETE. 16 languages with full RTL support for ar/fa/ur.
+- Full translations for ar/en/fr; English fallback for remaining 13 languages.
+- Language picker UI with native names + flags + RTL badges.
+- RTL layout direction automatically applied when ar/fa/ur is selected.
+- Same signing key preserved → install v1.9.0 over v1.8.0 without uninstall.

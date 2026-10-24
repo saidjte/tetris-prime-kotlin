@@ -17,6 +17,10 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settings = SettingsManager.load(this)
+        // Phase 9: init translation system with the user's language
+        TranslationManager.init(this)
+        // Apply RTL/LTR layout direction based on current language
+        applyLayoutDirection()
 
         val scroll = ScrollView(this)
         val container = LinearLayout(this).apply {
@@ -26,7 +30,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // Header
-        container.addView(header("⚙️ الإعدادات"))
+        container.addView(header(TranslationManager.t(TranslationManager.Keys.SETTINGS_TITLE)))
 
         // Section: Audio
         container.addView(section("الصوت").also { s ->
@@ -89,12 +93,25 @@ class SettingsActivity : AppCompatActivity() {
         })
 
         // Section: Language
-        container.addView(section("اللغة").also { s ->
-            s.addView(
-                dropdown("اللغة", listOf("auto", "ar", "en", "fr"), settings.lang) {
-                    settings = settings.copy(lang = it); save()
+        container.addView(section(TranslationManager.t(TranslationManager.Keys.SETTINGS_LANGUAGE)).also { s ->
+            // Phase 9: language picker button (opens full 16-language screen)
+            val langBtn = Button(this).apply {
+                val resolved = TranslationManager.resolveLanguage(settings.lang)
+                val nativeName = TranslationManager.NATIVE_NAMES[resolved] ?: resolved
+                val flag = TranslationManager.FLAGS[resolved] ?: "🌐"
+                val autoLabel = if (settings.lang == "auto") " (تلقائي)" else ""
+                text = "$flag $nativeName$autoLabel"
+                setBackgroundColor(0xFF312E81.toInt())
+                setTextColor(0xFFF3F1FF.toInt())
+                setOnClickListener {
+                    startActivity(android.content.Intent(this@SettingsActivity, LanguageSettingsActivity::class.java))
                 }
-            )
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 8 }
+            }
+            s.addView(langBtn)
         })
 
         // Done button
@@ -115,6 +132,18 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun save() = SettingsManager.save(this, settings)
+
+    /**
+     * Phase 9 — apply RTL/LTR layout direction based on current language.
+     * ar/fa/ur → RTL, everything else → LTR.
+     */
+    private fun applyLayoutDirection() {
+        val isRtl = TranslationManager.isRtl(TranslationManager.currentLang)
+        window.decorView.layoutDirection = if (isRtl)
+            android.view.View.LAYOUT_DIRECTION_RTL
+        else
+            android.view.View.LAYOUT_DIRECTION_LTR
+    }
 
     // ---- UI helpers ----
 

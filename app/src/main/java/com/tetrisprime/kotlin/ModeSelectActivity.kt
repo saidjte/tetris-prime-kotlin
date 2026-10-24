@@ -22,6 +22,10 @@ class ModeSelectActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Phase 9: initialize translation system and apply RTL/LTR
+        TranslationManager.init(this)
+        applyLayoutDirection()
+
         // Load stats (in real app, from SharedPreferences/Room)
         stats = loadStats()
 
@@ -35,7 +39,7 @@ class ModeSelectActivity : AppCompatActivity() {
 
         // Title
         val title = TextView(this).apply {
-            text = "اختر نمط اللعب"
+            text = TranslationManager.t(TranslationManager.Keys.MODE_SELECT_TITLE)
             textSize = 24f
             setTextColor(0xFFF3F1FF.toInt())
             gravity = android.view.Gravity.CENTER
@@ -317,5 +321,17 @@ class ModeSelectActivity : AppCompatActivity() {
             maxCombo = prefs.getInt("maxCombo", 0),
             maxB2b = prefs.getInt("maxB2b", 0)
         )
+    }
+
+    /**
+     * Phase 9 — apply RTL/LTR layout direction based on current language.
+     * ar/fa/ur → RTL, everything else → LTR.
+     */
+    private fun applyLayoutDirection() {
+        val isRtl = TranslationManager.isRtl(TranslationManager.currentLang)
+        window.decorView.layoutDirection = if (isRtl)
+            android.view.View.LAYOUT_DIRECTION_RTL
+        else
+            android.view.View.LAYOUT_DIRECTION_LTR
     }
 }

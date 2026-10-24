@@ -78,6 +78,12 @@
             android:name=".GiftCodeActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+
+        <!-- Phase 9: Language picker -->
+        <activity
+            android:name=".LanguageSettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>
