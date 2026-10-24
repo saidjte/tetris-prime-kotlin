@@ -209,7 +209,7 @@ class KeyboardGamepadDispatcher(
     fun handleKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         // ---- Gamepad D-pad ----
         when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_GAMEPAD_DPAD_LEFT -> {
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
                 if (!leftHeld) {
                     leftHeld = true
                     onAction(InputSystem.Action.MOVE_LEFT)
@@ -218,7 +218,7 @@ class KeyboardGamepadDispatcher(
                 }
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_GAMEPAD_DPAD_RIGHT -> {
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 if (!rightHeld) {
                     rightHeld = true
                     onAction(InputSystem.Action.MOVE_RIGHT)
@@ -227,15 +227,15 @@ class KeyboardGamepadDispatcher(
                 }
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_GAMEPAD_DPAD_DOWN -> {
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
                 if (!downHeld) {
                     downHeld = true
                     onAction(InputSystem.Action.SOFT_DROP_START)
                 }
                 return true
             }
-            // ---- Rotate (keyboard X/Z + gamepad A/B) ----
-            KeyEvent.KEYCODE_X, KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_GAMEPAD_DPAD_UP -> {
+            // ---- Rotate (keyboard X/Z + gamepad A/B + DPAD_UP) ----
+            KeyEvent.KEYCODE_X, KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_UP -> {
                 onAction(InputSystem.Action.ROTATE_CW); haptic.light(); return true
             }
             KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_BUTTON_B -> {
@@ -263,13 +263,13 @@ class KeyboardGamepadDispatcher(
 
     fun handleKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_GAMEPAD_DPAD_LEFT -> {
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
                 leftHeld = false; handler.removeCallbacks(leftRepeat); return true
             }
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_GAMEPAD_DPAD_RIGHT -> {
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 rightHeld = false; handler.removeCallbacks(rightRepeat); return true
             }
-            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_GAMEPAD_DPAD_DOWN -> {
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
                 downHeld = false; onAction(InputSystem.Action.SOFT_DROP_STOP); return true
             }
         }

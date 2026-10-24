@@ -25,7 +25,7 @@ import androidx.appcompat.app.AppCompatActivity
 class InputSettingsActivity : AppCompatActivity() {
 
     private lateinit var preview: FrameLayout
-    private lateinit var layout: MutableList<ButtonLayout>
+    private var buttonLayout: MutableList<ButtonLayout> = mutableListOf()
     private var selectedButton: InputButton? = null
 
     // UI for editing the selected button
@@ -36,7 +36,7 @@ class InputSettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        layout = LayoutStore.load(this).toMutableList()
+        buttonLayout = LayoutStore.load(this).toMutableList()
 
         val scroll = android.widget.ScrollView(this)
         val container = LinearLayout(this).apply {
@@ -137,10 +137,10 @@ class InputSettingsActivity : AppCompatActivity() {
                     val sz = (p + 5) / 100f
                     sizeLabel.text = "الحجم: ${p + 5}%"
                     val btn = selectedButton ?: return
-                    val idx = layout.indexOfFirst { it.buttonId == btn }
+                    val idx = this@InputSettingsActivity.buttonLayout.indexOfFirst { item -> item.buttonId == btn }
                     if (idx >= 0) {
-                        layout[idx] = layout[idx].copy(sizeN = sz)
-                        LayoutStore.save(this@InputSettingsActivity, layout)
+                        this@InputSettingsActivity.buttonLayout[idx] = this@InputSettingsActivity.buttonLayout[idx].copy(sizeN = sz)
+                        LayoutStore.save(this@InputSettingsActivity, this@InputSettingsActivity.buttonLayout)
                         renderPreview()
                     }
                 }
@@ -159,10 +159,10 @@ class InputSettingsActivity : AppCompatActivity() {
             isEnabled = false
             setOnCheckedChangeListener { _, checked ->
                 val btn = selectedButton ?: return@setOnCheckedChangeListener
-                val idx = layout.indexOfFirst { it.buttonId == btn }
+                val idx = this@InputSettingsActivity.buttonLayout.indexOfFirst { item -> item.buttonId == btn }
                 if (idx >= 0) {
-                    layout[idx] = layout[idx].copy(visible = checked)
-                    LayoutStore.save(this@InputSettingsActivity, layout)
+                    this@InputSettingsActivity.buttonLayout[idx] = this@InputSettingsActivity.buttonLayout[idx].copy(visible = checked)
+                    LayoutStore.save(this@InputSettingsActivity, this@InputSettingsActivity.buttonLayout)
                     renderPreview()
                 }
             }
@@ -172,7 +172,7 @@ class InputSettingsActivity : AppCompatActivity() {
         return card
     }
 
-    private fun buildButtonSelector(): LinearLayout {
+    private fun buildButtonSelector(): android.widget.GridLayout {
         val grid = android.widget.GridLayout(this).apply {
             columnCount = 4
             useDefaultMargins = true
@@ -214,7 +214,7 @@ class InputSettingsActivity : AppCompatActivity() {
             setTextColor(0xFFF3F1FF.toInt())
             setOnClickListener {
                 LayoutStore.reset(this@InputSettingsActivity)
-                layout = DefaultLayouts.RIGHT_HANDED.toMutableList()
+                buttonLayout = DefaultLayouts.RIGHT_HANDED.toMutableList()
                 renderPreview()
             }
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = 8 }
@@ -224,7 +224,7 @@ class InputSettingsActivity : AppCompatActivity() {
             setBackgroundColor(0xFF8B5CF6.toInt())
             setTextColor(0xFFFFFFFF.toInt())
             setOnClickListener {
-                LayoutStore.save(this@InputSettingsActivity, layout)
+                LayoutStore.save(this@InputSettingsActivity, buttonLayout)
                 finish()
             }
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -236,7 +236,7 @@ class InputSettingsActivity : AppCompatActivity() {
 
     private fun selectButton(b: InputButton) {
         selectedButton = b
-        val item = layout.find { it.buttonId == b }
+        val item = buttonLayout.find { it.buttonId == b }
         selectedLabel.text = "${b.defaultIcon} ${b.label}"
         sizeSlider.isEnabled = item != null
         visibilitySwitch.isEnabled = item != null
@@ -252,7 +252,7 @@ class InputSettingsActivity : AppCompatActivity() {
         val pw = preview.width.toFloat()
         val ph = preview.height.toFloat()
         if (pw <= 0f) return
-        for (item in layout) {
+        for (item in buttonLayout) {
             if (!item.visible) continue
             val v = TextView(this).apply {
                 text = item.buttonId.defaultIcon
@@ -296,15 +296,15 @@ class InputSettingsActivity : AppCompatActivity() {
                         view.y = newTop.toFloat()
 
                         // Update normalized position in real time
-                        val idx = layout.indexOfFirst { it.buttonId == item.buttonId }
+                        val idx = buttonLayout.indexOfFirst { it.buttonId == item.buttonId }
                         if (idx >= 0) {
                             val newXn = (newLeft + view.width / 2) / pw
                             val newYn = (newTop + view.height / 2) / ph
-                            layout[idx] = layout[idx].copy(xN = newXn, yN = newYn)
+                            buttonLayout[idx] = buttonLayout[idx].copy(xN = newXn, yN = newYn)
                         }
                     }
                     MotionEvent.ACTION_UP -> {
-                        LayoutStore.save(this@InputSettingsActivity, layout)
+                        LayoutStore.save(this@InputSettingsActivity, buttonLayout)
                     }
                 }
                 true
