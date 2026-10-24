@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Phase 7: required for HapticController (vibration feedback on input) -->
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -138,12 +139,15 @@
             android:configChanges="density|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
 
-        <!-- Phase 0: AdMob AdActivity (required by Google Mobile Ads SDK) -->
+        <!-- Phase 0: AdMob AdActivity (required by Google Mobile Ads SDK).
+             tools:replace="configChanges" overrides the SDK's default so
+             we can add density|keyboardHidden which the SDK doesn't include. -->
         <activity
             android:name="com.google.android.gms.ads.AdActivity"
             android:exported="false"
             android:configChanges="density|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
-            android:theme="@android:style/Theme.Translucent" />
+            android:theme="@android:style/Theme.Translucent"
+            tools:replace="android:configChanges" />
     </application>
 
 </manifest>
