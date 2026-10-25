@@ -203,6 +203,21 @@ class GameActivity : AppCompatActivity() {
 
         // Phase 7: initialize input subsystems
         settings = SettingsManager.load(this)
+        // v2.5.0 — re-apply FX level now that settings are loaded, so the
+        // user's choice in Settings → FX level is actually respected at game
+        // start. Before this, the level was hardcoded to DEFAULT_FX_LEVEL
+        // ("strong") AND setFxLevel("strong") fell through to the `else ->
+        // 1.0f` branch (a separate bug now fixed in ParticleSystem). Combined
+        // effect: the user always got 1.0× FX regardless of their setting.
+        // Now we honor the saved level (defaulting to "strong" if blank),
+        // and setFxLevel() maps both old and new level names correctly.
+        try {
+            val fxLevel = settings.fx.ifBlank { FxPackDefinitions.DEFAULT_FX_LEVEL }
+            gameView.setFxLevel(fxLevel)
+            android.util.Log.d("GameActivity", "v2.5.0 applied FX level from settings: '$fxLevel'")
+        } catch (e: Exception) {
+            android.util.Log.w("GameActivity", "Failed to apply settings.fx: ${e.message}")
+        }
         // Phase 11: apply performance profile (affects render FPS + particle cap)
         PerformanceManager.init(this)
         // Haptics are always enabled at the controller level; the buzz() method

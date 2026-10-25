@@ -216,7 +216,7 @@ class GameView @JvmOverloads constructor(
     private val announcerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         textAlign = Paint.Align.CENTER
-        textSize = 18f
+        textSize = 18f  // v2.5.0: overridden in onSizeChanged with density-scaled size
     }
     private val announcerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -441,6 +441,11 @@ class GameView @JvmOverloads constructor(
             Color.argb(220, 8, 6, 26),
             Shader.TileMode.CLAMP
         )
+
+        // v2.5.0 — density-scale the announcer text size so captions are
+        // readable on high-DPI screens. Was hardcoded 18 raw px = 6dp on a
+        // 3× phone (illegible).
+        announcerPaint.textSize = 18f * resources.displayMetrics.density
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -579,7 +584,10 @@ class GameView @JvmOverloads constructor(
         }
 
         // 13. Particles (rendered on top of everything)
-        particleSystem.render(canvas, boardLeft, boardTop, boardW, boardH, cellSize)
+        // v2.5.0 — pass device density so ParticleSystem can scale text/particle/
+        // confetti sizes out of raw-pixel land (was rendering at 1/3 intended size
+        // on 3× density phones, making phrases tiny and effects invisible).
+        particleSystem.render(canvas, boardLeft, boardTop, boardW, boardH, cellSize, resources.displayMetrics.density)
 
         // 14. Countdown overlay
         if (engine.status == GameStatus.COUNTDOWN) {

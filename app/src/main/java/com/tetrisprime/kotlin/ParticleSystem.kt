@@ -143,17 +143,35 @@ class ParticleSystem {
     // Current FX pack colors
     private var packColors = listOf("#8B5CF6", "#EC4899", "#22D3EE", "#FBBF24", "#34D399")
 
-    /** Set the FX quality level. */
+    /**
+     * Set the FX quality level.
+     *
+     * v2.5.0 ROOT-CAUSE FIX — accept BOTH the canonical Phase-9 names
+     * (weak/medium/strong/veryStrong/epic, defined in FxPackDefinitions)
+     * AND the legacy names (low/high/ultra/legendary) that older saved
+     * settings may still carry. Before this fix, calling setFxLevel("strong")
+     * — which is exactly what FxPackDefinitions.DEFAULT_FX_LEVEL equals —
+     * fell through to the `else -> 1.0f` branch, so the user got 1.0× FX
+     * instead of the intended 2.2×. The default for unknown values is now
+     * also 2.2× (strong), so any future string drift cannot silently turn
+     * off the celebration effects again.
+     */
     fun setFxLevel(level: String) {
         fxLevel = level
         fxMul = when (level) {
-            "off" -> 0f
-            "low" -> 0.3f
-            "medium" -> 0.5f
-            "high" -> 1.0f
-            "ultra" -> 1.5f
-            "legendary" -> 2.2f
-            else -> 1.0f
+            // Canonical Phase-9 names (FxPackDefinitions.FX_MULTIPLIERS)
+            "off"         -> 0f
+            "weak"        -> 0.6f
+            "medium"      -> 1.2f
+            "strong"      -> 2.2f
+            "veryStrong"  -> 3.3f
+            "epic"        -> 4.4f
+            // Legacy aliases (older saved settings / SettingsActivity dropdown)
+            "low"         -> 0.6f       // == weak
+            "high"        -> 2.2f       // == strong (was 1.0 — root cause)
+            "ultra"       -> 3.3f       // == veryStrong
+            "legendary"   -> 2.2f       // == strong
+            else          -> 2.2f       // DEFAULT: strong (was 1.0 — bug)
         }
         maxParticles = (48 * (0.5f + 0.5f * fxMul)).toInt()
     }
@@ -696,9 +714,36 @@ class ParticleSystem {
         }
     }
 
-    /** Render all effects to canvas. */
-    fun render(canvas: Canvas, boardLeft: Float, boardTop: Float, boardWidth: Float, boardHeight: Float, cellSize: Float) {
+    /**
+     * Render all effects to canvas.
+     *
+     * v2.5.0 ROOT-CAUSE FIX — added `density` parameter and scale ALL visual
+     * sizes by it. Before this fix every size (text 42f, particle 2-9f,
+     * confetti 7×4, shadow 12f, lane offset 100+lane*60, bloom 200f) was in
+     * RAW pixels — on a 3.0 density phone that meant 14dp text, 1-3dp
+     * particles, 2×1dp confetti, all essentially invisible. The original
+     * PWA used CSS px which the browser auto-scales by devicePixelRatio; the
+     * Kotlin port forgot to do the equivalent multiply. Now we do it here,
+     * at render time, so spawn-time positions (already in screen px) stay
+     * correct while their drawn sizes become device-density-aware.
+     *
+     * Lane Y-position was also reworked: instead of fixed `boardTop + 100 +
+     * lane*60` raw pixels (which on tall screens parked phrases at the very
+     * top of the board, often under the status bar), phrases now sit at
+     * `boardTop + boardHeight * (0.30 + lane*0.15)` — i.e. lane 0 at 30%
+     * down the board, lane 1 at 45% (center), lane 2 at 60%. This makes the
+     * stack visually centered over the playfield at any screen size.
+     */
+    fun render(
+        canvas: Canvas,
+        boardLeft: Float, boardTop: Float,
+        boardWidth: Float, boardHeight: Float,
+        cellSize: Float,
+        density: Float = 1f
+    ) {
         if (!isEnabled()) return
+
+        val d = density  // local alias — multiplier for every drawn size
 
         // Render blooms (radial gradient flashes)
         for (b in blooms) {
@@ -706,7 +751,7 @@ class ParticleSystem {
             val progress = 1f - (b.life / b.maxLife)
             val alpha = (255 * (1f - progress) * 0.75f).toInt()
             val scale = 0.55f + progress * 0.65f
-            val radius = b.size * scale
+            val radius = b.size * scale * d  // v2.5.0: was `b.size * scale` (raw px)
             paint.color = Color.argb(alpha, Color.red(b.color), Color.green(b.color), Color.blue(b.color))
             paint.alpha = alpha
             canvas.drawCircle(b.x, b.y, radius, paint)
@@ -717,53 +762,54 @@ class ParticleSystem {
             val alpha = ((p.life / p.maxLife) * 255).toInt().coerceIn(0, 255)
             paint.color = p.color
             paint.alpha = alpha
+            val psz = p.size * d  // v2.5.0: scale particle draw-size by density
 
             when (p.kind) {
                 ParticleKind.STAR -> {
                     paint.style = Paint.Style.FILL
-                    drawStar(canvas, p.x, p.y, p.size, p.rot)
+                    drawStar(canvas, p.x, p.y, psz, p.rot)
                 }
                 ParticleKind.BUBBLE -> {
                     paint.style = Paint.Style.STROKE
-                    paint.strokeWidth = 2f
-                    canvas.drawCircle(p.x, p.y, p.size, paint)
+                    paint.strokeWidth = 2f * d  // v2.5.0: was 2f raw
+                    canvas.drawCircle(p.x, p.y, psz, paint)
                     paint.style = Paint.Style.FILL
                 }
                 ParticleKind.ELECTRIC -> {
                     paint.style = Paint.Style.FILL
-                    canvas.drawRect(p.x - p.size / 2, p.y - p.size / 2, p.x + p.size / 2, p.y + p.size / 2, paint)
+                    canvas.drawRect(p.x - psz / 2, p.y - psz / 2, p.x + psz / 2, p.y + psz / 2, paint)
                 }
                 ParticleKind.CRYSTAL_SHARD -> {
                     paint.style = Paint.Style.FILL
-                    drawShard(canvas, p.x, p.y, p.size, p.rot)
+                    drawShard(canvas, p.x, p.y, psz, p.rot)
                 }
                 ParticleKind.PHOENIX_FLAME -> {
                     paint.style = Paint.Style.FILL
-                    canvas.drawCircle(p.x, p.y, p.size, paint)
+                    canvas.drawCircle(p.x, p.y, psz, paint)
                 }
                 ParticleKind.PARTY_CONFETTI -> {
                     paint.style = Paint.Style.FILL
                     canvas.save()
                     canvas.rotate(p.rot * 57.3f, p.x, p.y)
-                    canvas.drawRect(p.x - p.size / 2, p.y - p.size / 4, p.x + p.size / 2, p.y + p.size / 4, paint)
+                    canvas.drawRect(p.x - psz / 2, p.y - psz / 4, p.x + psz / 2, p.y + psz / 4, paint)
                     canvas.restore()
                 }
                 ParticleKind.GALAXY_SWIRL -> {
                     paint.style = Paint.Style.FILL
-                    canvas.drawCircle(p.x, p.y, p.size, paint)
+                    canvas.drawCircle(p.x, p.y, psz, paint)
                 }
                 ParticleKind.AURORA_WAVE -> {
                     paint.style = Paint.Style.FILL
                     paint.alpha = alpha / 2
-                    canvas.drawCircle(p.x, p.y, p.size, paint)
+                    canvas.drawCircle(p.x, p.y, psz, paint)
                 }
                 ParticleKind.LIGHTNING_BOLT -> {
                     paint.style = Paint.Style.FILL
-                    canvas.drawRect(p.x - p.size / 4, p.y - p.size, p.x + p.size / 4, p.y + p.size, paint)
+                    canvas.drawRect(p.x - psz / 4, p.y - psz, p.x + psz / 4, p.y + psz, paint)
                 }
                 else -> {
                     paint.style = Paint.Style.FILL
-                    canvas.drawCircle(p.x, p.y, p.size, paint)
+                    canvas.drawCircle(p.x, p.y, psz, paint)
                 }
             }
         }
@@ -783,16 +829,26 @@ class ParticleSystem {
             } else {
                 1f
             }
-            val ftScale = scale * ft.scale
+            // v2.5.0: ftScale now includes density so text renders at ~42dp
+            // (was 42 raw px = 14dp on a 3× phone — the "phrases very small" bug)
+            val ftScale = scale * ft.scale * d
             paint.color = ft.color
             paint.alpha = alpha
-            // Base text size = 42f, multiplied by ft.scale (size/42 from onFloatText)
-            paint.textSize = (42f * ftScale).coerceIn(20f, 80f)
+            // Base text size = 42f × ftScale (no clamp — clamp was clipping the
+            // 2.4× pop-in peak to 80 raw px = 26dp, hiding the overshoot entirely)
+            paint.textSize = 42f * ftScale
             paint.textAlign = Paint.Align.CENTER
             paint.isFakeBoldText = true
-            // Phase 9 — glow shadow (matches original neon aesthetic)
+            // Phase 9 — glow shadow (radius scales with density so the neon
+            // halo is visible on high-DPI screens; was 12 raw px = 4dp)
             paint.setShadowLayer(12f * ftScale, 0f, 0f, ft.color)
-            canvas.drawText(ft.text, boardLeft + boardWidth / 2, boardTop + 100 + ft.lane * 60, paint)
+            // v2.5.0 — board-relative lane positioning. Lane 0 at 30% down the
+            // board (combos/level — top), lane 1 at 45% (main clear type —
+            // center), lane 2 at 60% (B2B — below center). Was fixed at
+            // `boardTop + 100 + lane*60` raw px which parked phrases at the
+            // very top of the screen on tall devices.
+            val laneY = boardTop + boardHeight * (0.30f + ft.lane * 0.15f)
+            canvas.drawText(ft.text, boardLeft + boardWidth / 2, laneY, paint)
             paint.setShadowLayer(0f, 0f, 0f, 0)
         }
         paint.alpha = 255
@@ -803,12 +859,16 @@ class ParticleSystem {
                 0xFF8B5CF6.toInt(), 0xFFEC4899.toInt(), 0xFF22D3EE.toInt(),
                 0xFFFBBF24.toInt(), 0xFF34D399.toInt(), 0xFFE879F9.toInt()
             )
+            // v2.5.0 — confetti rect dims scaled by density (was 7×4 raw px
+            // = 2×1dp on a 3× phone, invisible)
+            val cw = 7f * d
+            val ch = 4f * d
             for (i in 0 until confettiCount) {
                 val cx = boardLeft + (boardWidth * (i * 37 % 100) / 100f)
                 val cy = boardTop + (boardHeight * (i * 53 % 100) / 100f)
                 paint.color = confettiColors[i % confettiColors.size]
                 paint.style = Paint.Style.FILL
-                canvas.drawRect(cx, cy, cx + 7, cy + 4, paint)
+                canvas.drawRect(cx, cy, cx + cw, cy + ch, paint)
             }
         }
     }
