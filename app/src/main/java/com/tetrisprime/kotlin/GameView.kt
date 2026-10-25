@@ -834,15 +834,26 @@ class GameView @JvmOverloads constructor(
         canvas.drawText("Score: ${engine.score}", cx, cy + countdownPaint.textSize * 1.8f, countdownPaint)
     }
 
+    /**
+     * ROOT-CAUSE FIX (v2.4.0) — Frame processing for hosts that advance the
+     * engine themselves (GameActivity). Before this method existed, GameActivity
+     * called gameView.invalidate() directly, so detectEvents() NEVER ran —
+     * meaning celebration phrases, lock flash, line-clear flash, hard-drop
+     * trail, and particle bursts were dead code in the real game.
+     */
+    fun onFrame(deltaMs: Long) {
+        lastFrameDeltaMs = deltaMs.toFloat().coerceIn(1f, 100f)
+        detectEvents(deltaMs)
+        invalidate()
+    }
+
+    /** Frame processing for hosts where GameView owns the engine update (MainActivity). */
     fun update(deltaMs: Long) {
-        // Phase 8 fix — store real delta for onDraw animations (was hardcoded 16f)
-        lastFrameDeltaMs = deltaMs.toFloat().coerceIn(1f, 100f)  // cap to prevent jumps
         if (engine.status == GameStatus.COUNTDOWN) {
             engine.updateCountdown(deltaMs)
         } else if (engine.status == GameStatus.PLAYING) {
             engine.update(deltaMs)
         }
-        detectEvents(deltaMs)
-        invalidate()
+        onFrame(deltaMs)
     }
 }

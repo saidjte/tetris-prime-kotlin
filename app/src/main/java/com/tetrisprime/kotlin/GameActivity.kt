@@ -194,7 +194,9 @@ class GameActivity : AppCompatActivity() {
             gameView.setFxPack(fxId)
             gameView.setBackground(bgId)
             audioEngine?.voice?.setPack(voiceId)
-            android.util.Log.d("GameActivity", "Applied: theme=$themeId, fx=$fxId, bg=$bgId, voice=$voiceId")
+            // v2.4.0 — wire particle intensity (original default: strong = 2.2×)
+            gameView.setFxLevel(FxPackDefinitions.DEFAULT_FX_LEVEL)
+            android.util.Log.d("GameActivity", "Applied: theme=$themeId, fx=$fxId, bg=$bgId, voice=$voiceId, fxLevel=${FxPackDefinitions.DEFAULT_FX_LEVEL}")
         } catch (e: Exception) {
             android.util.Log.w("GameActivity", "Failed to apply equipped items: ${e.message}")
         }
@@ -488,7 +490,11 @@ class GameActivity : AppCompatActivity() {
                     }
                     prevGameStatus = eng.status
 
-                    gameView.invalidate()
+                    // ROOT-CAUSE FIX (v2.4.0): was gameView.invalidate() — which
+                    // SKIPPED detectEvents() entirely, so celebration phrases,
+                    // lock flash, line-clear flash, hard-drop trail, and particle
+                    // bursts never appeared. onFrame() runs detection + redraw.
+                    gameView.onFrame(delta)
 
                     scoreText.text = "${eng.score}"
                     levelText.text = "L${eng.level}"
