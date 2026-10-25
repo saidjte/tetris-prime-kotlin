@@ -729,3 +729,30 @@ Stage Summary:
 - release v2.0.0 (release_id=423028496) مع APK + source code
 - نفس مفتاح التوقيع → التحديث يُثبَّت فوق كل الإصدارات السابقة بدون إزالة
 - 8 releases خلال رحلة الترحيل: v1.5.0 → v1.17.0 → v2.0.0
+
+---
+Task ID: v2.4.0-root-cause-fix
+Agent: main
+Task: الإصلاح الجذري — الـ celebration phrases كانت كوداً ميتاً في اللعبة الحقيقية
+
+Work Log:
+- المستخدم أبلغ: "لم يطبق شيء مما سبق" رغم أن v2.3.0 أضاف 13 phrase
+- فحصت DEX الـ v2.3.0 ووجدت الـ strings موجودة (GODLIKE!, MEGA COMBO!...)
+- السبب الجذري: GameActivity loop كان يستدعي gameView.invalidate() مباشرة
+  * invalidate() يرسم فقط — لا يشغل detectEvents()
+  * detectEvents() هي التي تُنشئ phrases/lock flash/line-clear flash/trail/particles
+  * detectEvents كانت تُستدعى فقط من GameView.update() التي تستخدمها MainActivity فقط
+- الإصلاح:
+  * GameView.onFrame(deltaMs) — جديدة: lastFrameDeltaMs + detectEvents + invalidate
+  * GameView.update() — أصبحت تستدعي onFrame بعد تحديث المحرك (MainActivity path)
+  * GameActivity loop: invalidate() → onFrame(delta)
+  * ربط FX level: gameView.setFxLevel("strong") (2.2× افتراضي مطابق للأصل)
+- تحقق قبل النشر (أول مرة): فككت APK المبني وفحصت DEX
+  * onFrame: 11 مطابقة ✅
+  * GODLIKE/MEGA COMBO/UNSTOPPABLE: موجودة ✅
+  * version 2.4.0 في manifest ✅
+- الدرس: فحص DEX وحده لا يكفي — يجب تتبع مسار التنفيذ من حلقة اللعبة
+
+Stage Summary:
+- v2.4.0 release_id=423090719 مع APK (13.84MB) + source
+- كل التأثيرات البصرية الآن موصولة فعلياً بحلقة اللعبة في GameActivity
