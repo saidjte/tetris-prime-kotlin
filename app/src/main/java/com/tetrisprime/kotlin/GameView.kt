@@ -564,8 +564,35 @@ class GameView @JvmOverloads constructor(
             gameOverAgeMs = 0f
         }
 
+        // 17. Phase 8 fix — Pause overlay (was missing entirely)
+        if (engine.isPaused && !engine.isGameOver) {
+            drawPauseOverlay(canvas)
+        }
+
         // 16. Phase 5 — announcer text (transient caption, fades after 2.5s)
         drawAnnouncer(canvas)
+    }
+
+    /** Phase 8 fix — Pause overlay. The original game shows a dim overlay
+     *  with "إيقاف مؤقت" text and a resume hint. Was completely missing. */
+    private fun drawPauseOverlay(canvas: Canvas) {
+        // Dim the playfield
+        canvas.drawColor(Color.argb(180, 5, 3, 15))
+
+        val cx = width / 2f
+        val cy = height / 2f
+
+        // Big "PAUSED" text
+        countdownPaint.textSize = min(width, height) * 0.10f
+        countdownPaint.color = Color.argb(255, 251, 191, 36)  // amber
+        countdownPaint.setShadowLayer(20f, 0f, 0f, Color.argb(200, 251, 191, 36))
+        canvas.drawText("⏸ إيقاف مؤقت", cx, cy, countdownPaint)
+        countdownPaint.setShadowLayer(0f, 0f, 0f, 0)
+
+        // Subtitle hint
+        countdownPaint.textSize = min(width, height) * 0.035f
+        countdownPaint.color = Color.argb(200, 200, 200, 230)
+        canvas.drawText("اضغط ❚❚ للمتابعة", cx, cy + countdownPaint.textSize * 2f, countdownPaint)
     }
 
     private fun drawAnnouncer(canvas: Canvas) {

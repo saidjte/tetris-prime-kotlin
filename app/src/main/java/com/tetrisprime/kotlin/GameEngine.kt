@@ -456,11 +456,26 @@ open class GameEngine(
         return board.ghostDrop(p)
     }
 
-    /** Get the highest filled row (for danger detection). */
+    /** Get the highest filled row (y-coordinate of topmost filled cell).
+     *  Returns -1 if board is empty. Lower y = higher on board = more danger. */
     fun getDangerLevel(): Int = board.highestFilledRow()
 
-    /** Check if in danger zone (board >= 15 rows filled). */
-    fun isInDanger(): Boolean = board.highestFilledRow() >= 15
+    /** Phase 8 fix — danger zone is the top of the visible playfield.
+     *  Board height=22, top 2 rows are hidden spawn area, so visible is
+     *  rows 2..21 (y=2 is the topmost visible row).
+     *  highestFilledRow() returns the y of the topmost filled cell.
+     *  - y=-1: board empty → no danger
+     *  - y in 0..4: stack reaches into spawn area → DANGER (top 5 rows)
+     *  - y >= 5: stack is well below spawn → no danger
+     *
+     *  Previous code used `>= 15` which was completely inverted — it
+     *  triggered danger when the stack was LOW (rows 15-21 are at the
+     *  BOTTOM of the board). This caused the red danger overlay to
+     *  flash constantly once any piece was placed. */
+    fun isInDanger(): Boolean {
+        val top = board.highestFilledRow()
+        return top in 0..4  // top 5 rows of the 22-row board
+    }
 
     companion object {
         /** Regular line clear scores: [0, single, double, triple, tetris]. */

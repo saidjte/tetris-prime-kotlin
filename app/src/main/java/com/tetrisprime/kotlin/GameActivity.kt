@@ -184,6 +184,21 @@ class GameActivity : AppCompatActivity() {
         // Replace the GameView's engine with our mode engine
         gameView.setEngine(engine!!)
 
+        // Phase 8 fix — Apply equipped theme/FX/background (was completely missing)
+        try {
+            val themeId = StoreManager.getEquipped(this, "theme")
+            val fxId = StoreManager.getEquipped(this, "fx")
+            val bgId = StoreManager.getEquipped(this, "background").ifEmpty { "synthwave" }
+            val voiceId = StoreManager.getEquipped(this, "voice").ifEmpty { "raffina" }
+            gameView.setTheme(themeId)
+            gameView.setFxPack(fxId)
+            gameView.setBackground(bgId)
+            audioEngine?.voice?.setPack(voiceId)
+            android.util.Log.d("GameActivity", "Applied: theme=$themeId, fx=$fxId, bg=$bgId, voice=$voiceId")
+        } catch (e: Exception) {
+            android.util.Log.w("GameActivity", "Failed to apply equipped items: ${e.message}")
+        }
+
         // Phase 7: initialize input subsystems
         settings = SettingsManager.load(this)
         // Phase 11: apply performance profile (affects render FPS + particle cap)
@@ -406,22 +421,27 @@ class GameActivity : AppCompatActivity() {
                                 audioEngine?.playTSpin(linesCleared)
                                 audioEngine?.voiceTSpin(linesCleared)
                             }
-                            // Perfect clear
-                            if (eng.lastClearWasPerfect && !prevPerfectClears.let { false }) {
+                            // Perfect clear — only on the transition (eng.perfectClears just incremented)
+                            if (eng.perfectClears > prevPerfectClears) {
                                 audioEngine?.voicePerfectClear()
                             }
-                            // B2B
-                            if (eng.b2bActive && eng.lastClearWasDifficult) {
+                            // B2B — only when b2bActive just turned true on this clear
+                            if (eng.b2bActive && eng.lastClearWasDifficult && eng.combo == 0) {
+                                // combo == 0 means this is the first clear in a chain;
+                                // b2bActive being true here means B2B was triggered
                                 audioEngine?.voiceB2B()
                             }
-                            // Combo
-                            if (eng.combo >= 1) audioEngine?.voiceCombo(eng.combo + 1)
+                            // Combo (only on increment, not every frame)
+                            if (eng.combo > prevCombo) {
+                                audioEngine?.voiceCombo(eng.combo + 1)
+                            }
                             prevLines = eng.lines
                             prevTSpinType = eng.lastClearWasTSpin
                             prevPerfectClears = eng.perfectClears
+                            prevCombo = eng.combo
                         }
-                        // Combo regression — reset prevCombo
-                        if (eng.combo < prevCombo) prevCombo = eng.combo - 1
+                        // Track combo regression so next increment fires voice
+                        if (eng.combo < prevCombo) prevCombo = eng.combo
 
                         // Phase 2: level up
                         if (eng.level > prevLevel) {

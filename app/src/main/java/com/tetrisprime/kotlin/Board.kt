@@ -61,15 +61,53 @@ class Board(val width: Int = 10, val height: Int = 22) {
                 clearedRows.add(y)
             }
         }
-        // Actually remove cleared rows and shift down
-        for (row in clearedRows) {
-            for (ny in row downTo 1) {
-                for (x in 0 until width) {
-                    this[x, ny] = this[x, ny - 1]
-                }
-            }
+        // Phase 8 fix — sort clearedRows DESCENDING before removal.
+        // The previous code iterated in insertion order (also descending due to
+        // the downTo loop, but only by coincidence). Sorting explicitly makes
+        // the intent clear and prevents index corruption when multiple rows
+        // are cleared in one frame.
+        // When we remove the lowest cleared row first, the rows above shift
+        // down by one. The next cleared row's index (which was higher up)
+        // is now one less than originally recorded — but since we process
+        // from lowest to highest, the higher rows haven't shifted yet at
+        // the time we process the lower ones, so their indices are still
+        // valid at that point. Wait — that's backwards. Let me reconsider.
+        //
+        // Actually: if we clear rows [10, 12, 15] (clearedRows list, ascending),
+        // and we process them in ascending order:
+        //   - clear row 10: rows 0-9 shift down → row 0 becomes null, row 10 = old row 9
+        //   - clear row 12: but row 12 is now what used to be row 13 (because row 10
+        //     clearing shifted everything above row 10 down by 1)
+        // So we'd be clearing the WRONG row.
+        //
+        // FIX: process in DESCENDING order (highest row first). When we clear row 15,
+        // rows 0-14 shift down → row 0 becomes null, rows 1-15 = old rows 0-14.
+        // Row 12 (originally) is now at index 13 — but we haven't processed it yet,
+        // and we'll process it next at its ORIGINAL index 12, which is now WRONG.
+        //
+        // The truly correct approach: rebuild the board by copying non-cleared rows.
+        val clearedSet = clearedRows.toSet()
+        val newGrid = Array<CharArray?>(height) { null }
+        for (i in 0 until height) newGrid[i] = CharArray(width) { ' ' }
+        var writeY = height - 1
+        for (y in height - 1 downTo 0) {
+            if (y in clearedSet) continue
             for (x in 0 until width) {
-                this[x, 0] = null
+                newGrid[writeY]!![x] = this[x, y] ?: ' '
+            }
+            writeY--
+        }
+        // Fill remaining top rows with null (empty)
+        for (y in 0..writeY) {
+            for (x in 0 until width) {
+                newGrid[y]!![x] = ' '
+            }
+        }
+        // Copy back
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val c = newGrid[y]!![x]
+                this[x, y] = if (c == ' ') null else c
             }
         }
         return ClearResult(clearedRows.size, clearedRows)
