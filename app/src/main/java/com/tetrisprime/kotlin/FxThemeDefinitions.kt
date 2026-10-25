@@ -45,17 +45,30 @@ object FxPackDefinitions {
     fun getColors(id: String): List<String> = getPack(id).colors
 
     /** FX quality levels. */
-    val FX_LEVELS = listOf("off", "low", "medium", "high", "ultra", "legendary")
+    /** FX quality levels.
+     *  Phase 9 — Updated to match original game's 5 particle intensity levels
+     *  (extracted from https://w1p1p97jy0j0-d.space-z.ai):
+     *    off         0×    no particles
+     *    weak        0.6×  ~42 small particles
+     *    medium      1.2×  ~50 moderate particles
+     *    strong      2.2×  ~70 dense particles (DEFAULT)
+     *    veryStrong  3.3×  ~90 dense and large particles
+     *    epic        4.4×  ~110 very large and dense particles
+     */
+    val FX_LEVELS = listOf("off", "weak", "medium", "strong", "veryStrong", "epic")
 
     /** FX level multipliers. */
     val FX_MULTIPLIERS = mapOf(
         "off" to 0f,
-        "low" to 0.3f,
-        "medium" to 0.5f,
-        "high" to 1.0f,
-        "ultra" to 1.5f,
-        "legendary" to 2.2f
+        "weak" to 0.6f,
+        "medium" to 1.2f,
+        "strong" to 2.2f,
+        "veryStrong" to 3.3f,
+        "epic" to 4.4f
     )
+
+    /** Default FX level — matches original game's "strong" default. */
+    const val DEFAULT_FX_LEVEL = "strong"
 }
 
 /**

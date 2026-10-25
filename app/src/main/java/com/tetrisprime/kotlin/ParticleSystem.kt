@@ -230,13 +230,13 @@ class ParticleSystem {
     }
 
     /** Trigger a floating text effect. */
-    fun onFloatText(text: String, color: Int, lane: Int = 0) {
+    fun onFloatText(text: String, color: Int, lane: Int = 0, size: Float = 42f) {
         floatingTexts.add(FloatingText(
             x = 0f, y = 0f,
             text = text,
             color = color,
             life = 1400f, maxLife = 1400f,
-            scale = 1f,
+            scale = size / 42f,  // store relative scale
             lane = lane
         ))
     }
@@ -773,17 +773,27 @@ class ParticleSystem {
         for (ft in floatingTexts) {
             val alpha = ((ft.life / ft.maxLife) * 255).toInt().coerceIn(0, 255)
             val progress = 1f - (ft.life / ft.maxLife)
-            val scale = if (progress < 0.2f) {
-                0.2f + progress * 5f * 0.8f // pop-in
+            // Phase 9 — pop-in with 2.4× overshoot (matches original celebration scale)
+            val scale = if (progress < 0.15f) {
+                // Pop-in: 0 → 2.4× in first 15% of life
+                (progress / 0.15f) * 2.4f
+            } else if (progress < 0.30f) {
+                // Settle: 2.4× → 1.0× in next 15%
+                2.4f - ((progress - 0.15f) / 0.15f) * 1.4f
             } else {
                 1f
             }
+            val ftScale = scale * ft.scale
             paint.color = ft.color
             paint.alpha = alpha
-            paint.textSize = 42f * scale
+            // Base text size = 42f, multiplied by ft.scale (size/42 from onFloatText)
+            paint.textSize = (42f * ftScale).coerceIn(20f, 80f)
             paint.textAlign = Paint.Align.CENTER
             paint.isFakeBoldText = true
+            // Phase 9 — glow shadow (matches original neon aesthetic)
+            paint.setShadowLayer(12f * ftScale, 0f, 0f, ft.color)
             canvas.drawText(ft.text, boardLeft + boardWidth / 2, boardTop + 100 + ft.lane * 60, paint)
+            paint.setShadowLayer(0f, 0f, 0f, 0)
         }
         paint.alpha = 255
 

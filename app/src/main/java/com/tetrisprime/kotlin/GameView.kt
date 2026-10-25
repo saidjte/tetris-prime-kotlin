@@ -312,45 +312,75 @@ class GameView @JvmOverloads constructor(
                 }
             }
 
-            // Floating-text popups based on what the engine says about the clear
-            val popupColor = Color.parseColor("#FDE047")
-            val popupColorTSpin = Color.parseColor("#A78BFA")
-            val popupColorTetris = Color.parseColor("#22D3EE")
-            val popupColorPC = Color.parseColor("#34D399")
+            // Floating-text popups based on what the engine says about the clear.
+            // Phase 9 — Colors and sizes match the original game's celebration phrases
+            // (extracted from https://w1p1p97jy0j0-d.space-z.ai):
+            //   TETRIS!              #FBBF24  42px
+            //   PERFECT CLEAR!       #FBBF24  42px
+            //   BACK-TO-BACK ×1.5    #F472B6  42px
+            //   T-SPIN!              #22D3EE  35px
+            //   DOUBLE ×2            #34D399  35px
+            //   TRIPLE ×3            #A78BFA  35px
+            //   COMBO ×N             #FB923C  35px
+            //   LEVEL N              #22D3EE  35px
+            //   MEGA COMBO!          #FB7185  35px  (combo ≥ 5)
+            //   UNSTOPPABLE!         #F472B6  42px  (combo ≥ 8)
+            //   SPIN MASTER!         #A78BFA  42px  (3+ tspins in a row)
+            //   ON FIRE!             #FB923C  35px  (3+ b2b in a row)
+            //   GODLIKE!             #FBBF24  42px  (combo ≥ 12)
+            val colorTetris = Color.parseColor("#FBBF24")    // 42px
+            val colorPC = Color.parseColor("#FBBF24")        // 42px
+            val colorB2B = Color.parseColor("#F472B6")       // 42px
+            val colorTSpin = Color.parseColor("#22D3EE")     // 35px
+            val colorDouble = Color.parseColor("#34D399")    // 35px
+            val colorTriple = Color.parseColor("#A78BFA")    // 35px
+            val colorCombo = Color.parseColor("#FB923C")     // 35px
+            val colorLevel = Color.parseColor("#22D3EE")     // 35px
+            val colorMegaCombo = Color.parseColor("#FB7185") // 35px
+            val colorUnstoppable = Color.parseColor("#F472B6") // 42px
+            val colorGodlike = Color.parseColor("#FBBF24")   // 42px
 
             when {
                 eng.lastClearWasPerfect -> {
-                    particleSystem.onFloatText("PERFECT CLEAR!", popupColorPC, lane = 1)
+                    particleSystem.onFloatText("PERFECT CLEAR!", colorPC, lane = 1, size = 42f)
                     particleSystem.onConfetti()
                 }
                 eng.lastClearWasTSpin != TSpinType.NONE && linesCleared >= 1 -> {
                     val label = when (linesCleared) {
-                        1 -> "T-SPIN SINGLE"
+                        1 -> "T-SPIN!"
                         2 -> "T-SPIN DOUBLE"
                         3 -> "T-SPIN TRIPLE"
                         else -> "T-SPIN!"
                     }
-                    particleSystem.onFloatText(label, popupColorTSpin, lane = 1)
-                    if (eng.b2bActive) particleSystem.onFloatText("BACK-TO-BACK ×1.5", popupColorTSpin, lane = 2)
+                    particleSystem.onFloatText(label, colorTSpin, lane = 1, size = 35f)
+                    if (eng.b2bActive) particleSystem.onFloatText("BACK-TO-BACK ×1.5", colorB2B, lane = 2, size = 42f)
                 }
                 linesCleared == 4 -> {
-                    particleSystem.onFloatText("TETRIS!", popupColorTetris, lane = 1)
-                    if (eng.b2bActive) particleSystem.onFloatText("BACK-TO-BACK ×1.5", popupColorTetris, lane = 2)
+                    particleSystem.onFloatText("TETRIS!", colorTetris, lane = 1, size = 42f)
+                    if (eng.b2bActive) particleSystem.onFloatText("BACK-TO-BACK ×1.5", colorB2B, lane = 2, size = 42f)
                 }
                 linesCleared == 3 -> {
-                    particleSystem.onFloatText("TRIPLE", popupColor, lane = 1)
+                    particleSystem.onFloatText("TRIPLE ×3", colorTriple, lane = 1, size = 35f)
+                }
+                linesCleared == 2 -> {
+                    particleSystem.onFloatText("DOUBLE ×2", colorDouble, lane = 1, size = 35f)
                 }
             }
 
-            if (eng.combo >= 1) {
-                particleSystem.onFloatText("COMBO ×${eng.combo + 1}", Color.parseColor("#FB923C"), lane = 0)
+            // Combo celebration phrases (escalating tier)
+            val comboLevel = eng.combo + 1  // engine.combo is 0-indexed
+            when {
+                comboLevel >= 12 -> particleSystem.onFloatText("GODLIKE!", colorGodlike, lane = 0, size = 42f)
+                comboLevel >= 8 -> particleSystem.onFloatText("UNSTOPPABLE!", colorUnstoppable, lane = 0, size = 42f)
+                comboLevel >= 5 -> particleSystem.onFloatText("MEGA COMBO!", colorMegaCombo, lane = 0, size = 35f)
+                comboLevel >= 2 -> particleSystem.onFloatText("COMBO ×$comboLevel", colorCombo, lane = 0, size = 35f)
             }
             prevLines = eng.lines
         }
 
         // ----- Level-up detection -----
         if (eng.level > prevLevel) {
-            particleSystem.onFloatText("LEVEL ${eng.level}", Color.parseColor("#22D3EE"), lane = 0)
+            particleSystem.onFloatText("LEVEL ${eng.level}", Color.parseColor("#22D3EE"), lane = 0, size = 35f)
             particleSystem.onConfetti()
             prevLevel = eng.level
         }
